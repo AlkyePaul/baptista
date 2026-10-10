@@ -4,7 +4,9 @@ Ultimo aggiornamento: 2026-10-10.
 
 ## Current phase
 
-**Phase 04 — ADVANCED DOMAINS: in_progress, prima tranche (Cucina + Finanze manuali + UX stanze).** Avviata su mandato esplicito dell'utente (2026-10-10) con i gate 02/03 ancora in attesa del walkthrough autenticato (D27). Vision/intake, storage privato, router AI e Guardaroba **non ancora implementati**.
+**Phase 04.1 — CONNESSIONI + BAPTISTA DETERMINISTICO: in_progress (D30).** Passi A e B implementati e verificati in locale il 2026-10-10 su mandato esplicito dell'utente («apply the phase 4.1»), con i residui della fase 04 riportati (vedi sotto). Migration `baptista_wardrobe`, `baptista_connections`, `baptista_presentation` **applicate in remoto il 2026-10-10** su conferma dell'utente. Manca il walkthrough browser con account reali, che richiede prima il deploy su Vercel.
+
+**Phase 04 — ADVANCED DOMAINS: in_progress, deterministica (D28).** Tranche 1: Cucina + Finanze + UX stanze (applicata). Tranche 2: Guardaroba manuale con foto private (codice e test pronti, **migration `baptista_wardrobe` in attesa di apply**). Avviata su mandato esplicito dell'utente (2026-10-10) con i gate 02/03 ancora in attesa del walkthrough autenticato (D27). Per D28 router AI, vision e intake passano alla fase 05.
 
 | Fase | Stato | Nota |
 | --- | --- | --- |
@@ -12,7 +14,8 @@ Ultimo aggiornamento: 2026-10-10.
 | 01 Database | completed | test isolati PGlite 27/27 + migration applicate al progetto condiviso |
 | 02 Auth/Household | in_progress (gate) | codice completo; test multiutente a livello DB passati; **manca walkthrough browser con 2 utenti reali** |
 | 03 Core domains | in_progress (gate) | codice, migration e test DB/unit passati; **manca walkthrough browser autenticato** |
-| 04 Advanced domains | in_progress | Cucina e Finanze manuali + test; migration 04 applicate in remoto 2026-10-10; mancano vision (scontrini), storage, ai_settings/ai_runs/router, Guardaroba |
+| 04 Advanced domains | in_progress | deterministica (D28): Cucina/Finanze applicate; Guardaroba pronto, migration da applicare; mancano foto dello scontrino allegata, lettore codice a barre, walkthrough autenticato |
+| 04.1 Connessioni + Baptista deterministico | in_progress | codice A+B completo, test DB/unit e build ok (2026-10-10); migration applicate in remoto; deploy Vercel e walkthrough con 2–3 account reali da fare |
 | 05–07 | not_started | — |
 
 Repository: `C:\webdev_local\baptista`. Git inizializzato; **nessun commit ancora creato** (in attesa dell'utente).
@@ -65,6 +68,26 @@ Mappa codice: `services/{food,meals,diet,finance,watchlist}.ts`, `app/actions/{k
 
 Non ancora fatto in fase 04: bucket privati e policy storage, `visual_intakes`, `ai_settings`/`ai_runs`, adapter/registry/router vision e image_processing, scansione scontrino reale (la scheda «Scontrino» mostra uno stato onesto «non ancora attiva»), Guardaroba (resta segnaposto), smoke provider e prove rete `local_only`.
 
+### Phase 04 — tranche 2: Guardaroba manuale (2026-10-10, gate non raggiunto)
+
+Migration `20261009225721_baptista_wardrobe.sql` (PGlite ok, **non applicata in remoto**): `wardrobe_items` (tipo, colori, fantasia, stagioni, stile, marca, taglia, etichette, note, `original_path`/`thumb_path`, `processed_path` riservato alla fase 05, archiviazione; foto solo nella cartella del caricatore e della propria casa; evento `wardrobe.item_added`), bucket privato `baptista-wardrobe` (10 MB, JPEG/PNG/WebP) e 3 policy su `storage.objects` limitate a quel bucket: scrittura solo in `<casa>/<utente>/<upload>/<file>` da membro attivo; lettura del caricatore o di chi può leggere il capo; cancellazione con la stessa regola della lettura (l'app cancella prima le foto e poi il capo). Nessuna policy di update: oggetti immutabili.
+
+Upload (D29): il browser riduce la foto (lato lungo 2048 px, JPEG, orientamento applicato, EXIF/GPS rimossi sul dispositivo) per restare sotto il limite di 4,5 MB del corpo richiesta su Vercel; il server ricontrolla byte reali (firma JPEG/PNG/WebP, HEIC riconosciuto con messaggio chiaro), 10 MB, 20 megapixel, decodifica con `sharp` e genera la miniatura WebP 800 px senza metadati. Foto servite solo con URL firmati da 10 minuti emessi dopo RLS. `sharp` 0.35.5 aggiunto esplicitamente alle dipendenze; `serverActions.bodySizeLimit` e `proxyClientMaxBodySize` a 11 MB.
+
+UI: `/stanze/guardaroba/capi` (griglia foto, filtri tipo/stagione/colore, archivio), `/capi/[id]` (foto, dettagli, modifica, cambia foto, archivia, elimina), `/aggiungi` (Scatta/Galleria + classificazione a mano), `/categorie` (riepilogo per tipo, stagione, colore); Home Guardaroba con capi della stagione e ultimi aggiunti. Codice: `services/wardrobe.ts`, `app/actions/wardrobe.ts`, `lib/{wardrobe,image-check}.ts`, `components/{wardrobe,wardrobe-grid,photo-picker}.tsx`. `parseForm` ora raccoglie chiavi ripetute (gruppi di checkbox) in array.
+
+### Phase 04.1 — connessioni e Baptista deterministico (2026-10-10, gate non raggiunto)
+
+Entrata con residui della fase 04 riportati su mandato dell'utente (come D27): `baptista_wardrobe` non applicata, foto scontrino, lettore codice a barre, walkthrough.
+
+Migration (PGlite ok, applicate in remoto il 2026-10-10, file rinominati con la versione server): `20261010202428_baptista_connections.sql` — `name_key`, `shopping_items` (solo household, stato `stocked` solo da procedura), `pantry_staples`, colonne `wardrobe_items.acquisition/expense_id`, `goals.habit_id` con sincronizzazione dalle registrazioni, procedure `add_shopping_item`, `stock_shopping_items`, `unstock_shopping_items`, `register_shopping_expense`, `register_wardrobe_purchase`, `mark_wardrobe_owned_before` (min 7), `set_pantry_staple`; eventi shopping/expense/acquisition/staple; refresh non throttled dopo eventi nuovi; detector v4 (domande C1/C2/C4/C5/A‑2, C6, C8, `calendar_overlap`, `food_opened`). `20261010202448_baptista_presentation.sql` — `baptista_presentations` self-only + `record_presentation`.
+
+Passo A (UI): `components/list-accordion.tsx` per tutte le liste (Aggiungi → Liste, nota, ingredienti di ricetta); `components/shopping-list.tsx` in cima alla Dispensa e fissata per prima in Aggiungi → Liste (Alimenti con ricerca OFF e categoria → luogo proposto, Altro; spunta = in dispensa con «Annulla» 30 s; «Tutto in dispensa» + «Aggiungi scadenze»; righe già in dispensa con token `--already`; stella «Abituale» anche sugli alimenti in Dispensa); ricetta «Cosa manca?» (C3, solo spuntati); capo: blocco «L'hai comprato?» (prezzo/data/negozio/visibilità, «Era già mio», «È un regalo», «Cambia risposta»), «Acquistato il … · prezzo» con link alla spesa, vista «Da rispondere» con «Erano già miei» da 7 capi; Aggiungi capo da `?spesa=` (C5); obiettivi «Avanza con un'abitudine» (C9). Codice: `services/shopping.ts`, `app/actions/shopping.ts`, `lib/shopping.ts`, estensioni a wardrobe/goals/food-lookup/openfoodfacts.
+
+Passo B: `lib/baptista/{expressions,select,templates,attention,machine,typing,daily,calculations,view}.ts` e `lib/baptista/scripts/*` (puri); `services/baptista.ts`, `app/actions/baptista.ts`; `components/baptista/{avatar,bubble,options,conversation,thread,room}.tsx`; WebP 192/384 da `scripts/baptista-icons.mjs` (8–20 KB invece di ~1 MB). Home Soggiorno: Baptista al posto di «In evidenza» (battuta/citazione del giorno, 1 conversazione + 2 in coda, frase calma); Home delle altre stanze, Dispensa, Spese e Capi: Baptista della stanza; scheda Baptista: «Chiedi a Baptista» (4 calcoli predefiniti, incluso `spending_comparison`), «Da rispondere», «Fatto di recente».
+
+Scostamenti dal documento di fase: dati OFF salvati come colonne tipizzate invece di `off_snapshot` JSONB; battuta del giorno con 8 voci (1 battuta + 1 citazione per famiglia, finanze, cucina, guardaroba: decisione utente 2026-10-10) invece di 90, nessuna voce per date fisse; «Più tardi» sul capo posticipa di 3 giorni finché la domanda è valida (14 giorni) invece di «una sola volta»; budget C6 calcolato solo sulle spese condivise; C7 (costo stimato, A+) non fatto; `old_food`/`food_opened` hanno script propri, gli altri tipi esistenti (`missed_habit`, `goal_progress`, `upcoming_calendar`) solo informativi.
+
 ## Known issues / blockers
 
 - **Nessun provider AI configurato** (`AI_GATEWAY_API_KEY`/`LOCAL_AI_*` assenti): blocca vision scontrini e Guardaroba con classificazione; CRUD manuale non bloccato.
@@ -103,6 +126,9 @@ Non ancora fatto in fase 04: bucket privati e policy storage, `visual_intakes`, 
 | D24 | **Categorie** per abitudini e obiettivi: 10 di sistema + personali per utente, colore che si riflette su anelli (pagina, Home, In evidenza), filtro per categoria, gestione in `/abitudini/categorie`; leggibili anche tramite record condivisi (nome+colore), mai elencate né assegnabili da altri | implementato |
 | D25 | **Cucina** (utente 2026-10-10): Dispensa con scadenze integrate (niente pagina Scadenze), Aggiungi = Alimento/Ricetta/Pasto, Dieta = conta calorie privato con Open Food Facts | implementato (tranche 1) |
 | D26 | **Finanze** (utente 2026-10-10): scontrino = modale dentro Spese; Budget = budget mensili + progetti di spesa con preventivo; Watchlist personale con TradingView (solo iframe sandbox, mai script nell'origine) | implementato, scansione in attesa di vision |
+| D28 | **Prima il deterministico** (utente 2026-10-10): la fase 04 si chiude senza AI; router/ai_settings/ai_runs/visual_intakes, lettura scontrini e classificazione guardaroba passano all'inizio della fase 05 (provider: Vercel AI Gateway). Piano, fasi 04/05, AGENT e VISUAL_INTAKE aggiornati | registrato |
+| D29 | Foto ridotte nel browser prima dell'upload (limite corpo Vercel 4,5 MB; EXIF/GPS rimossi sul dispositivo); il server rivalida byte e pixel e crea la miniatura senza metadati. L'«originale» conservato è la versione ridotta, non il file della fotocamera | implementato |
+| D30 | **Fase 04.1** (utente 2026-10-10): prima della 05, (A) connessioni deterministiche tra stanze (Lista della spesa → Dispensa, «L'hai comprato?» per i capi → Spese, catalogo C1–C14) e (B) strato Baptista senza AI (espressioni in `public/icons/baptista-icons/`, template italiani, micro‑conversazioni a stati, memoria di presentazione per utente, budget di attenzione); In evidenza diventa Baptista (filo a eventi in stile chat) e il Soggiorno apre con una battuta/citazione del giorno; gli altri blocchi informativi restano invariati. Ordine: prima A con interazioni semplici, poi B; solo le 4 espressioni esistenti. Vedi [fase 04.1](phases/PHASE_04_1_CONNECTIONS_AND_BAPTISTA.md) | progettato |
 | D27 | Fase 04 avviata su mandato utente con gate 02/03 in attesa del walkthrough autenticato (deroga all'ordine dei gate, come D16) | registrato |
 | D21 | **Modulo Aggiungi** con 4 varianti (Da fare, Evento, Nota, Lista) al posto di «Liste»; `/liste` reindirizza; dettagli in `/aggiungi/attivita/[id]`, `/aggiungi/note/[id]`. Calendario a griglia mensile con giorni apribili; abitudini/obiettivi con anelli colorati | implementato |
 
@@ -148,11 +174,39 @@ Non ancora fatto in fase 04: bucket privati e policy storage, `visual_intakes`, 
 
 Non eseguiti: walkthrough browser autenticato (anche per Cucina/Finanze); rendering reale dei grafici TradingView e del modale; vision.
 
+2026-10-10 — Fase 04.1, Windows 11, Node 22.11.0:
+
+| Comando / scenario | Esito |
+| --- | --- |
+| `npm run test:db` | **78/78 pass** (20 nuovi in `supabase/tests/phase041.test.ts`) |
+| …copertura | lista solo household e invisibile agli estranei; «Altro» senza dati cibo; aggiunta duplicata somma la quantità (nome e barcode); spunta idempotente con alimento della casa ed evento bulk=false; stato `stocked` non scrivibile dal client; «Tutto in dispensa» solo righe cibo elencate ed evento bulk=true; annulla rifiutato se un alimento è cambiato, riuscito altrimenti; estraneo rifiutato; C1 solo dopo il blocco e solo a chi ha agito, righe solo per importi digitati, risolta dopo la registrazione, seconda registrazione rifiutata; C2 solo all'attore e risolta quando il prodotto entra in lista; C4 solo con kcal note; «già in dispensa» con accenti e sparisce dopo il consumo; abituale suggerito dopo 3 stoccaggi, mai dopo «No», una riga per prodotto, estraneo rifiutato; abituale esaurito raggruppato, C2 tace per gli abituali, sparisce quando è in lista; acquisto capo: domanda solo al proprietario, una spesa privata collegata, replay senza doppioni, senza prezzo nessuna spesa, capo privato altrui e versione vecchia rifiutati; «Erano già miei» rifiutato sotto 7 (anche con id duplicati), su capi altrui, tutto o niente; C5 e capo nato «purchased», spesa privata altrui non collegabile; budget 80% → 100% con spese private escluse; obiettivo collegato segue le registrazioni (anche di altri membri), evento di progresso, progresso manuale rifiutato, obiettivo condiviso su abitudine privata rifiutato; sovrapposizioni entro 48 h con privacy; aperto da 4 giorni; presentazioni self-only, conteggio una volta per finestra, posticipo, nessuna scrittura per altri |
+| `npm run test:unit` | **42/42 pass** (15 nuovi: ogni tipo di detector ha uno script e ogni alternativa è completa e senza segnaposti; script del mockup; scelta stabile; nome solo in apertura; esempio abitudine 4/5 e celebrazione; espressioni; macchina a stati; budget di attenzione; battuta del giorno uguale per giorno, senza ripetizioni per N giorni, autore solo per le citazioni; scrittura 30 ms/lettera con pause e massimo 2 s; intestazioni, frase calma, confronto mensile; chiave nome = SQL, luogo da categoria OFF, corrispondenza dispensa, ingredienti mancanti) |
+| `npm run check` | ok (35 route) |
+| `next start` su :3100 senza sessione | route nuove/aggiornate 307 → `/accedi`; `/icons/baptista-icons/baptista-alert-192.webp` 200; `/api/health` 200 |
+
+Apply remoto (2026-10-10, MCP `apply_migration`, conferma utente): pre-check storia remota (ultima `20261009224541`, nessuna collisione), baseline `public` 49 tabelle/viste, bucket solo `avatars`; applicate `20261010202151_baptista_wardrobe`, `20261010202428_baptista_connections`, `20261010202448_baptista_presentation` (SQL uguale ai file salvo commenti). Post-apply: 26 tabelle `baptista`, 0 senza RLS, 0 grant e 0 funzioni eseguibili da anon/PUBLIC; `public` ancora 49; bucket `avatars` + `baptista-wardrobe`, policy storage di GuideApp invariate più le 3 `baptista_wardrobe_*`; `_refresh_observations` v4 eseguita sulle case esistenti senza errori; `name_key` uguale a `lib/shopping.ts`. Advisors: per `baptista` solo le voci attese (procedure definer eseguibili da `authenticated`, `observation_refreshes` senza policy). `npm run test:db` 78/78 dopo la rinomina.
+
+Build come su Vercel: copia dei soli file che Git spedisce (tracciati + non ignorati, senza `node_modules`/`.next`/`.env.local`), `npm ci` pulito, `next build` con le due variabili pubbliche → ok (35 route). Il lockfile contiene i binari Linux di `sharp` (`@img/sharp-linux-x64`, `@img/sharp-libvips-linux-x64`).
+
+Non eseguiti: deploy Vercel; walkthrough autenticato del flusso del mockup, lista condivisa tra due membri, coerenza tra dispositivi, `prefers-reduced-motion` (SECURITY vieta utenti di test nell'Auth condiviso).
+
+2026-10-10 — D28 e Guardaroba:
+
+| Comando / scenario | Esito |
+| --- | --- |
+| `npm run test:db` (harness con schema `storage` minimo) | **58/58 pass** (nuovi: bucket privato e limiti; upload solo nella propria cartella di una casa di cui si è membri, cartella altrui/estraneo/percorso malformato/altro bucket negati; foto leggibile dal caricatore, poi da chi legge il capo, nascosta se il capo diventa privato, mai a estranei; capo non può puntare a foto altrui o di altra casa, stagioni e coppia foto/miniatura validate; cancellazione foto solo per chi può accedere al capo) |
+| `npm run test:unit` (ora con condizione `react-server`) | **27/27 pass** (nuovi: firma dei byte, HEIC, stagioni e etichette; `sharp` reale: miniatura ruotata secondo EXIF, 533×800, WebP senza EXIF; rifiuto di file finto, vuoto, HEIC, JPEG corrotto, oltre 10 MB, oltre 20 MP) |
+| `npm run check` | ok (35 route); unico avviso: ExperimentalWarning di Node 22.11 sui moduli JSON caricati da `sharp` |
+| Pre-check remoto (sola lettura) | bucket esistenti: solo `avatars` (GuideApp, pubblico) con 2 policy; nessuna policy `baptista_*`; colonne `storage.buckets` compatibili; ultima migration `20261009224541` |
+
+
 ## Handoff
 
-1. Migration fase 04 applicate (fatto).
+1. Migration fino a `baptista_presentation` applicate (fatto). Deploy su Vercel: commit e push del lavoro (quasi tutto è ancora non committato: Vercel costruisce da Git), variabili `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` nel progetto Vercel, URL `https://<dominio>/auth/conferma` tra i Redirect URLs di Supabase Auth (senza toccare Site URL e URL di GuideApp).
 2. Utente: walkthrough autenticato di Soggiorno (gate 02/03) e ora di Cucina/Finanze; `mosquitos` e redirect `/auth/conferma` ancora da sistemare in Dashboard.
-3. Fase 04 tranche 2: configurare un provider (AI Gateway o endpoint privato) → `ai_settings`/`ai_runs`, registry/router vision, bucket `baptista-receipts` privato con policy, `visual_intakes`, scansione scontrino nel modale Spese con review e conferma atomica; poi Guardaroba (originale/derivato, segmentazione separata). Approfondimento conta calorie con l'utente (es. lettore codice a barre da fotocamera).
+3. Chiusura fase 04 (deterministica): foto dello scontrino allegata alla spesa (bucket `baptista-receipts`, stesse regole del guardaroba), lettore codice a barre da fotocamera per la Cucina, correzioni dal walkthrough; poi gate 02/03/04.
+4. Fase 04.1 (D30): codice completo; dopo l'apply, walkthrough con 2–3 account reali (flusso del mockup, lista condivisa, «Ora no» personale tra dispositivi, riduzione movimento) e revisione delle 8 voci della battuta del giorno; poi gate 04.1. C7 resta facoltativo.
+5. Fase 05: prima lo strato AI con Vercel AI Gateway (router, ai_settings/ai_runs, visual_intakes, lettura scontrini e classificazione/segmentazione guardaroba con review), poi l'agente.
 
 ## Regole di aggiornamento
 

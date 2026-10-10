@@ -1,24 +1,21 @@
 import Link from "next/link";
 import { toggleHabitDayAction } from "@/app/actions/domains";
-import { Briefing } from "@/components/briefing";
+import { BaptistaThread } from "@/components/baptista/thread";
 import { ActionButton } from "@/components/forms";
-import { Icon } from "@/components/icons";
 import { ProgressRing } from "@/components/progress-ring";
 import { recordColor } from "@/lib/categories";
 import { RoomSwitcher } from "@/components/room-switcher";
 import { Card, EmptyState, Section, TextLink } from "@/components/ui";
 import { addDays, formatLongDay, formatTime, greeting, localDate, localHour } from "@/lib/dates";
 import { requireExecutionContext, type ExecutionContext } from "@/lib/households/context";
-import { buildBriefing } from "@/lib/intelligence/briefing";
-import { ROOMS } from "@/lib/rooms";
 import { getCurrentRoom } from "@/lib/rooms-server";
 import { listEventsBetween } from "@/services/calendar";
 import { goalPercent } from "@/lib/goals";
 import { listGoals } from "@/services/goals";
 import { getHabitWeeks, listHabits } from "@/services/habits";
-import { listActiveObservations, refreshObservations } from "@/services/intelligence";
+import { loadThread } from "@/services/baptista";
 import { listTasksDueBetween } from "@/services/tasks";
-import { FinanceRoom, KitchenRoom } from "@/components/room-dashboards";
+import { FinanceRoom, KitchenRoom, WardrobeRoom } from "@/components/room-dashboards";
 
 export default async function HomePage() {
   const ctx = await requireExecutionContext();
@@ -44,7 +41,7 @@ export default async function HomePage() {
       ) : room === "finanze" ? (
         <FinanceRoom ctx={ctx} now={now} />
       ) : (
-        <ComingSoonRoom roomId={room} />
+        <WardrobeRoom ctx={ctx} now={now} />
       )}
     </>
   );
@@ -54,26 +51,29 @@ async function LivingRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
   const tz = ctx.household.timezone;
   const today = localDate(now, tz);
 
-  // Deterministic refresh (throttled in the database) before reading the briefing.
-  await refreshObservations(ctx);
-  const [observations, events, dueToday, habits, goals] = await Promise.all([
-    listActiveObservations(ctx),
+  const [events, dueToday, habits, goals] = await Promise.all([
     listEventsBetween(ctx, today, addDays(today, 1)),
     listTasksDueBetween(ctx, today, today),
     listHabits(ctx, { activeOnly: true }),
     listGoals(ctx),
   ]);
   const openToday = dueToday.filter((t) => t.status === "open");
-  const briefing = buildBriefing(observations);
-  const weeks = await getHabitWeeks(ctx, habits, today);
-  // Ring colours for the briefing follow the same category colours as the cards.
+  const eventsLeft = events.filter((e) => e.all_day || (e.starts_at !== null && new Date(e.starts_at) > now)).length;
+  // Phase 04.1: Baptista takes the place of «In evidenza» (same observations, same ranking).
+  const [thread, weeks] = await Promise.all([
+    loadThread(ctx, { room: "all", daily: true, eventsLeftToday: eventsLeft, now }),
+    getHabitWeeks(ctx, habits, today),
+  ]);
+  // Ring colours of the thumbnails follow the same category colours as the cards.
   const colors = Object.fromEntries([...habits, ...goals].map((r) => [r.id, recordColor(r)]));
+  for (const view of [thread.active, ...thread.queue]) {
+    if (view?.thumb?.kind === "visual" && colors[view.thumb.sourceId]) view.thumb.color = colors[view.thumb.sourceId];
+  }
 
   return (
     <>
-      <Section title="In evidenza">
-        <Briefing items={briefing} timeZone={tz} colors={colors} />
-      </Section>
+      {thread.quiet ? <p className="-mt-2 text-muted">{thread.quiet}</p> : null}
+      <BaptistaThread thread={thread} timeZone={tz} />
 
       <Section title="Oggi" action={<TextLink href={`/calendario?giorno=${today}`}>Calendario</TextLink>}>
         {events.length || openToday.length ? (
@@ -170,19 +170,5 @@ async function LivingRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
         )}
       </Section>
     </>
-  );
-}
-
-function ComingSoonRoom({ roomId }: { roomId: keyof typeof ROOMS }) {
-  const room = ROOMS[roomId];
-  return (
-    <Card className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-      <span className="room-tile-active flex size-16 items-center justify-center rounded-2xl" data-room-tile={room.id}>
-        <Icon name={room.icon} className="size-9" />
-      </span>
-      <h2 className="text-xl font-semibold">{room.label}</h2>
-      <p className="text-muted">{room.description}.</p>
-      <p className="text-sm text-muted">Questa stanza è in arrivo. Intanto il Soggiorno è pronto.</p>
-    </Card>
   );
 }

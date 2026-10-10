@@ -33,6 +33,8 @@ const goalFields = {
   unit: optionalText(20),
   target_date: z.string().refine(isCivilDate, "Data non valida.").optional().transform((v) => v ?? null),
   category_id: categoryField,
+  /** C9: progress counted from this habit's entries; the database computes it. */
+  habit_id: z.uuid({ error: "Abitudine non valida." }).optional().transform((v) => v ?? null),
   visibility: visibilitySchema,
 };
 
@@ -69,14 +71,22 @@ export const progressSchema = z.object({
   version: versionField,
 });
 
+/** A goal linked to a habit has one source of progress: start and current values are not sent. */
+function withoutManualProgress<T extends { habit_id: string | null; start_value: number; current_value: number }>(input: T) {
+  if (!input.habit_id) return input;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- dropped on purpose
+  const { start_value, current_value, ...rest } = input;
+  return rest;
+}
+
 export async function createGoal(ctx: ExecutionContext, input: z.infer<typeof goalSchema>) {
-  const { error } = await ctx.supabase.from("goals").insert({ household_id: ctx.household.id, ...input });
+  const { error } = await ctx.supabase.from("goals").insert({ household_id: ctx.household.id, ...withoutManualProgress(input) });
   throwIfDbError(error);
 }
 
 export async function updateGoal(ctx: ExecutionContext, id: string, input: z.infer<typeof updateGoalSchema>) {
   const { version, ...patch } = input;
-  await updateVersioned(ctx, "goals", id, version, patch);
+  await updateVersioned(ctx, "goals", id, version, withoutManualProgress(patch));
 }
 
 /** The database emits `goal.progress_changed` when the value actually changes. */

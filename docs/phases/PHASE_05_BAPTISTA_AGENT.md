@@ -10,7 +10,7 @@ Il modello ragiona su fatti pertinenti senza diventare fonte di autorizzazione o
 
 ## Entry conditions
 
-Leggere [MASTER_SPEC](../BAPTISTA_MASTER_SPEC.md), [PRODUCTION_PLAN](../BAPTISTA_PRODUCTION_PLAN.md) e [STATUS](../BAPTISTA_STATUS.md). Gate 04 passato; router e processori minimi disponibili; leggere AGENT e SECURITY integralmente, DATABASE per tabelle intelligence.
+Leggere [MASTER_SPEC](../BAPTISTA_MASTER_SPEC.md), [PRODUCTION_PLAN](../BAPTISTA_PRODUCTION_PLAN.md) e [STATUS](../BAPTISTA_STATUS.md). Gate 04 passato (deterministico, D28); router e processori sono costruiti nel primo task di questa fase; leggere AGENT e SECURITY integralmente, DATABASE per tabelle intelligence.
 
 Se una condizione manca, completare soltanto l'analisi indipendente e registrare il blocco: non saltare il gate e non implementare la fase successiva.
 
@@ -28,7 +28,8 @@ Valgono invarianti MASTER_SPEC e contratti architecture. Repository standalone, 
 
 ## Implementation tasks
 
-1. Estendere registry/router 04 a fast/normal/reasoning/embeddings; verificare capacità tool/structured output dei modelli configurati. AI Gateway default cloud e adapter OpenAI-compatible privato.
+0. **Strato AI (spostato da 04, D28):** ai_settings minimi, ai_runs, registry, adapter AI Gateway (default) e OpenAI-compatible privato, router per vision/image_processing con le quattro modalità; visual_intakes con lease/cleanup; estrazione scontrino → bozza → review → conferma atomica (una spesa, molte righe) nel modale Spese; classificazione e segmentazione guardaroba separate con review; smoke reale e prove rete local_only. Criteri: VISUAL_INTAKE e la definition of done originaria della fase 04.
+1. Estendere registry/router a fast/normal/reasoning/embeddings; verificare capacità tool/structured output dei modelli configurati. AI Gateway default cloud e adapter OpenAI-compatible privato.
 2. Migrazioni suggestions, action_proposals, notifications e memories con audience e filtri; completare ai_settings/ai_runs senza duplicarne le fonti.
 3. Implementare ExecutionContext server e tool di lettura AGENT compatti/paginati. Tool scrittura generano solo proposte validate; executor separato dopo conferma.
 4. Conversazione con contesto limitato, regole prompt injection, max step/tool call/token, timeout, budget e messaggi errore. La UI mostra quali tool/proposte sono stati prodotti, senza log sensibili.

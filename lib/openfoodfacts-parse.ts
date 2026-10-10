@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { FoodCategory } from "./food";
+import { categoryFromOffTags } from "./shopping";
 
 /** Validation of Open Food Facts product JSON (pure, shared by the server client and tests). */
 
@@ -10,6 +12,8 @@ export type FoodFacts = {
   protein_100g: number | null;
   carbs_100g: number | null;
   fat_100g: number | null;
+  /** From the Open Food Facts category tags; decides the proposed storage (lib/shopping.ts). */
+  category: FoodCategory | null;
 };
 
 const product = z.object({
@@ -18,6 +22,7 @@ const product = z.object({
   product_name_it: z.string().optional(),
   brands: z.string().optional(),
   nutriments: z.record(z.string(), z.unknown()).optional(),
+  categories_tags: z.array(z.string()).optional().catch(undefined),
 });
 
 function bounded(value: unknown, max: number): number | null {
@@ -44,5 +49,6 @@ export function toFoodFacts(raw: unknown): FoodFacts | null {
     protein_100g: bounded(n["proteins_100g"], 100),
     carbs_100g: bounded(n["carbohydrates_100g"], 100),
     fat_100g: bounded(n["fat_100g"], 100),
+    category: categoryFromOffTags(p.categories_tags),
   };
 }

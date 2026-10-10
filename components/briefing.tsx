@@ -72,7 +72,8 @@ function Dismiss({ item }: { item: BriefingItem }) {
   );
 }
 
-function Visual({ item, size, timeZone, color }: { item: BriefingItem; size: number; timeZone: string; color?: string }) {
+/** The D23 visuals (ring, day counter, date tile); also the thumbnail next to Baptista's text. */
+export function Visual({ item, size, timeZone, color }: { item: Pick<BriefingItem, "visual" | "sourceId">; size: number; timeZone: string; color?: string }) {
   const v: BriefingVisual = item.visual;
   const big = size >= 80;
   switch (v.kind) {

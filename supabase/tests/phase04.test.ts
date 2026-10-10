@@ -355,3 +355,102 @@ describe("finanze — categories, expenses, budgets, goals, watchlist", () => {
     await rejects(as(db, bruno, (q) => q("insert into baptista.watchlist_items (symbol) values ('ONE:MORE')")), /limit_reached/);
   });
 });
+
+describe("guardaroba — items and private photos", () => {
+  const bucket = "baptista-wardrobe";
+  const path = (h: string, u: User, file: string, upload = "11111111-1111-4111-8111-111111111111") => `${h}/${u.id}/${upload}/${file}`;
+  async function upload(user: User, name: string) {
+    await as(db, user, (q) => q("insert into storage.objects (bucket_id, name) values ($1, $2)", [bucket, name]));
+  }
+  async function canRead(user: User, name: string) {
+    return (await count(user, "select * from storage.objects where bucket_id = $1 and name = $2", [bucket, name])) === 1;
+  }
+
+  test("the bucket is private and limited to images up to 10 MB", async () => {
+    const [b] = await as(db, "admin", (q) =>
+      q<{ public: boolean; file_size_limit: string; allowed_mime_types: string[] }>("select public, file_size_limit, allowed_mime_types from storage.buckets where id = $1", [bucket]),
+    );
+    assert.equal(b.public, false);
+    assert.equal(Number(b.file_size_limit), 10485760);
+    assert.deepEqual(b.allowed_mime_types, ["image/jpeg", "image/png", "image/webp"]);
+  });
+
+  test("uploads only into your own folder of a household you belong to", async () => {
+    await upload(anna, path(h1, anna, "original.jpg"));
+    await rejects(upload(bruno, path(h1, anna, "x.jpg", "22222222-2222-4222-8222-222222222222")), /row-level security/);
+    await rejects(upload(carla, path(h1, carla, "x.jpg")), /row-level security/);
+    await rejects(upload(anna, `${h1}/${anna.id}/x.jpg`), /row-level security/);
+    await rejects(upload(anna, `not-a-uuid/${anna.id}/u/x.jpg`), /row-level security/);
+    await rejects(
+      as(db, anna, (q) => q("insert into storage.objects (bucket_id, name) values ('avatars', $1)", [path(h1, anna, "a.jpg")])),
+      /row-level security|foreign key/,
+    );
+  });
+
+  test("a photo is readable by the uploader, then by whoever can read the item", async () => {
+    const original = path(h1, anna, "original.jpg");
+    const thumb = path(h1, anna, "thumb.webp");
+    await upload(anna, thumb);
+    assert.equal(await canRead(anna, original), true);
+    assert.equal(await canRead(bruno, original), false, "not yet attached to an item");
+
+    const item = await insertOne(
+      anna,
+      "insert into baptista.wardrobe_items (household_id, name, type, original_path, thumb_path, seasons) values ($1, 'Giacca blu', 'outerwear', $2, $3, '{autumn,winter}')",
+      [h1, original, thumb],
+    );
+    assert.equal(await canRead(bruno, original), true);
+    assert.equal(await canRead(bruno, thumb), true);
+    assert.equal(await canRead(carla, original), false);
+
+    await as(db, anna, (q) => q("update baptista.wardrobe_items set visibility = 'private' where id = $1", [item]));
+    assert.equal(await canRead(bruno, thumb), false, "private item hides its photos");
+    assert.equal(await canRead(anna, thumb), true);
+    await as(db, anna, (q) => q("update baptista.wardrobe_items set visibility = 'household' where id = $1", [item]));
+
+    const events = await as(db, anna, (q) => q<{ event_type: string }>("select event_type from baptista.events where source_id = $1", [item]));
+    assert.deepEqual(events.map((e) => e.event_type), ["wardrobe.item_added"]);
+  });
+
+  test("items cannot point at someone else's photo or another household", async () => {
+    await upload(bruno, path(h1, bruno, "b.jpg", "33333333-3333-4333-8333-333333333333"));
+    await rejects(
+      as(db, anna, (q) =>
+        q("insert into baptista.wardrobe_items (household_id, name, type, original_path, thumb_path) values ($1, 'x', 'top', $2, $2)", [
+          h1,
+          path(h1, bruno, "b.jpg", "33333333-3333-4333-8333-333333333333"),
+        ]),
+      ),
+      /forbidden/,
+    );
+    await rejects(
+      as(db, anna, (q) =>
+        q("insert into baptista.wardrobe_items (household_id, name, type, original_path, thumb_path) values ($1, 'x', 'top', $2, $2)", [h1, path(h2, anna, "y.jpg")]),
+      ),
+      /check constraint/,
+    );
+    await rejects(
+      as(db, anna, (q) => q("insert into baptista.wardrobe_items (household_id, name, type, seasons) values ($1, 'x', 'top', '{monsoon}')", [h1])),
+      /check constraint/,
+    );
+    await rejects(
+      as(db, anna, (q) => q("insert into baptista.wardrobe_items (household_id, name, type, original_path) values ($1, 'x', 'top', $2)", [h1, path(h1, anna, "o.jpg")])),
+      /check constraint/,
+    );
+  });
+
+  test("photos are deleted by whoever can delete the item; strangers and private items are protected", async () => {
+    const original = path(h1, anna, "original.jpg");
+    const del = async (user: User, name = original) =>
+      (await as(db, user, (q) => q("delete from storage.objects where bucket_id = $1 and name = $2 returning id", [bucket, name]))).length;
+    assert.equal(await del(carla), 0);
+    const priv = path(h1, anna, "secret.jpg", "44444444-4444-4444-8444-444444444444");
+    await upload(anna, priv);
+    await as(db, anna, (q) =>
+      q("insert into baptista.wardrobe_items (household_id, name, type, original_path, thumb_path, visibility) values ($1, 'Privato', 'top', $2, $2, 'private')", [h1, priv]),
+    );
+    assert.equal(await del(bruno, priv), 0, "private item: other members cannot touch the photo");
+    assert.equal(await del(bruno), 1, "household item: a member removes its photo, then the item");
+    await as(db, bruno, (q) => q("delete from baptista.wardrobe_items where original_path = $1", [original]));
+  });
+});

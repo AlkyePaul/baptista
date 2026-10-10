@@ -1,15 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import {
-  addItemAction,
-  clearDoneItemsAction,
-  deleteRecordAction,
-  removeItemAction,
-  toggleItemAction,
-  updateNoteAction,
-} from "@/app/actions/domains";
+import { addItemAction, clearDoneItemsAction, deleteRecordAction, updateNoteAction } from "@/app/actions/domains";
+import { ChecklistRows } from "@/components/checklist";
+import { ListAccordion } from "@/components/list-accordion";
 import { ActionButton, ActionForm, Field, SubmitButton, VisibilityField } from "@/components/forms";
-import { Card, EmptyState, PageHeader, TextLink } from "@/components/ui";
+import { PageHeader, TextLink } from "@/components/ui";
 import type { Note } from "@/lib/db/types";
 import { requireExecutionContext } from "@/lib/households/context";
 import { MAX_ITEMS } from "@/services/notes";
@@ -32,39 +27,9 @@ export default async function NotePage({ params }: PageProps<"/aggiungi/note/[id
 
       {note.kind === "list" ? (
         <>
-          {note.items.length ? (
-            <Card>
-              <ul className="divide-y divide-border">
-                {note.items.map((item) => (
-                  <li key={item.id} className="flex items-center gap-2 px-2 py-1">
-                    <ActionButton
-                      action={toggleItemAction.bind(null, note.id, note.version, item.id)}
-                      label={item.done ? `Segna come da fare: ${item.text}` : `Segna come fatto: ${item.text}`}
-                      className="size-11 px-0"
-                    >
-                      {item.done ? (
-                        <span aria-hidden className="inline-flex size-5 items-center justify-center rounded-md bg-accent text-xs text-on-accent">
-                          ✓
-                        </span>
-                      ) : (
-                        <span aria-hidden className="inline-block size-5 rounded-md border-2 border-border" />
-                      )}
-                    </ActionButton>
-                    <span className={item.done ? "flex-1 text-muted line-through" : "flex-1"}>{item.text}</span>
-                    <ActionButton
-                      action={removeItemAction.bind(null, note.id, note.version, item.id)}
-                      label={`Rimuovi: ${item.text}`}
-                      className="size-11 px-0"
-                    >
-                      <span aria-hidden>×</span>
-                    </ActionButton>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ) : (
-            <EmptyState>La lista è vuota.</EmptyState>
-          )}
+          <ListAccordion id={`note:${note.id}`} title="Elementi" count={note.items.length - doneCount}>
+            <ChecklistRows note={note} />
+          </ListAccordion>
           {note.items.length < MAX_ITEMS ? (
             <ActionForm action={addItemAction.bind(null, note.id)} className="flex-row items-end">
               <input type="hidden" name="version" value={note.version} />

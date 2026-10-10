@@ -51,6 +51,10 @@ Ogni scrittura AI, incluso dismissObservation, è una proposta persistita con au
 
 Modalità e consenso al fallback sono server-side. `local_only` è fail-closed per testo, immagini, segmentazione, embedding e retry. Contenuti non finiscono neanche in log/error reporting cloud. Una scelta private/self-hosted non prova assenza di retention del gestore: configurazione e avviso devono essere espliciti.
 
+## Foto del guardaroba (fase 04, D28/D29)
+
+Bucket `baptista-wardrobe` privato (10 MB, JPEG/PNG/WebP). Policy su `storage.objects` limitate al bucket e a funzioni definer `baptista.wardrobe_object_{writable,readable,deletable}`: scrittura solo nella cartella `<casa>/<utente>/…` di un membro attivo; lettura del caricatore o di chi può leggere il capo che usa il file (un capo reso privato nasconde le sue foto); cancellazione con la stessa regola della lettura; nessun update. Il browser riduce la foto e rimuove EXIF/GPS prima dell'invio; il server rivalida e crea la miniatura senza metadati. URL firmati da 10 minuti, mai salvati: un link già emesso resta valido fino alla scadenza anche dopo una revoca.
+
 ## Servizi esterni non AI (D25, D26)
 
 Open Food Facts: chiamato solo dal server (Server Action autenticata), host fisso `world.openfoodfacts.org`, nessun redirect, timeout 8 s, risposta validata e valori fuori intervallo scartati; esce solo il testo cercato o il codice a barre. Non è un provider AI, quindi `local_only` non si applica, ma l'interfaccia dichiara dove va la ricerca. Licenza dati ODbL citata nell'interfaccia.

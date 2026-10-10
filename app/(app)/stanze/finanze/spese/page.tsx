@@ -8,6 +8,7 @@ import { buttonClass, Card, cx, EmptyState, PrivateMark, Section } from "@/compo
 import type { Expense } from "@/lib/db/types";
 import { addMonths, formatMonth, isMonth, localDate, monthOf, relativeDay } from "@/lib/dates";
 import { requireExecutionContext } from "@/lib/households/context";
+import { BaptistaRoom } from "@/components/baptista/room";
 import { addAmounts, budgetUsage, totalsByCurrency } from "@/lib/money";
 import { listBudgets, listExpenseCategories, listFinanceGoals, listMonthExpenses } from "@/services/finance";
 
@@ -55,6 +56,8 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/stanze/
           <span className="size-11" />
         )}
       </header>
+
+      <BaptistaRoom ctx={ctx} room="finanze" />
 
       <Card className="flex flex-col gap-4 p-4">
         {totals.length ? (

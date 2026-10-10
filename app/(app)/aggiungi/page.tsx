@@ -2,12 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createEventAction, createNoteAction, createTaskAction, toggleTaskAction } from "@/app/actions/domains";
 import { ActionButton, ActionForm, EventTimeFields, Field, SubmitButton, VisibilityField } from "@/components/forms";
-import { Badge, Card, cx, EmptyState, PrivateMark, Section, TextLink } from "@/components/ui";
+import { Card, cx, EmptyState, PrivateMark, Section, TextLink } from "@/components/ui";
 import type { CalendarEvent } from "@/lib/db/types";
 import { addDays, formatTime, isCivilDate, localDate, relativeDay, toLocalInput } from "@/lib/dates";
 import { requireExecutionContext, type ExecutionContext } from "@/lib/households/context";
 import { eventStartDay, listEventsBetween } from "@/services/calendar";
 import { listNotes } from "@/services/notes";
+import { knownFoods, listPantry } from "@/services/food";
+import { shoppingView } from "@/services/shopping";
+import { ShoppingList } from "@/components/shopping-list";
+import { ListAccordion } from "@/components/list-accordion";
+import { ChecklistRows } from "@/components/checklist";
 import { PAGE_SIZE } from "@/services/shared";
 import { listOpenTasks, listRecentlyCompleted } from "@/services/tasks";
 
@@ -231,37 +236,62 @@ async function ExistingItems({ kind, ctx, more }: { kind: Kind; ctx: ExecutionCo
     );
   }
 
-  const notes = await listNotes(ctx, limit, kind === "lista" ? "list" : "note");
+  if (kind === "lista") {
+    // Phase 04.1 (A-1): the household shopping list is pinned first; every list is an accordion.
+    const [lists, pantry, known] = await Promise.all([listNotes(ctx, limit, "list"), listPantry(ctx), knownFoods(ctx)]);
+    const shoppingList = await shoppingView(ctx, pantry);
+    return (
+      <Section title="Le tue liste">
+        <ShoppingList items={shoppingList.items} inPantry={shoppingList.inPantry} staples={shoppingList.staples} known={known} defaultOpen={false} />
+        {lists.map((note) => {
+          const open = note.items.filter((i) => !i.done).length;
+          return (
+            <ListAccordion
+              key={note.id}
+              id={`note:${note.id}`}
+              title={
+                <span className="flex items-center gap-2">
+                  {note.title}
+                  <PrivateMark visibility={note.visibility} />
+                </span>
+              }
+              count={open}
+              defaultOpen={false}
+            >
+              <ChecklistRows note={note} />
+              <div className="flex justify-end border-t border-border px-2 py-1">
+                <TextLink href={`/aggiungi/note/${note.id}`}>Apri</TextLink>
+              </div>
+            </ListAccordion>
+          );
+        })}
+        {!lists.length ? <EmptyState>Nessun&apos;altra lista. Le liste private sono qui, la spesa è in alto.</EmptyState> : null}
+      </Section>
+    );
+  }
+
+  const notes = await listNotes(ctx, limit, "note");
   return (
-    <Section title={kind === "lista" ? "Le tue liste" : "Le tue note"}>
+    <Section title="Le tue note">
       {notes.length ? (
         <ul className="grid grid-cols-2 gap-2">
-          {notes.map((note) => {
-            const done = note.items.filter((i) => i.done).length;
-            return (
-              <li key={note.id}>
-                <Link
-                  href={`/aggiungi/note/${note.id}`}
-                  className="flex h-full min-h-24 flex-col gap-2 rounded-2xl border border-border bg-surface p-4"
-                >
-                  <span className="font-medium">{note.title}</span>
-                  {note.kind === "note" && note.body ? (
-                    <span className="line-clamp-2 text-sm text-muted">{note.body}</span>
-                  ) : null}
-                  <span className="mt-auto flex items-center gap-2 text-sm text-muted">
-                    {note.kind === "list" ? `${done}/${note.items.length}` : null}
-                    <PrivateMark visibility={note.visibility} />
-                    {note.kind === "list" && note.items.length > 0 && done === note.items.length ? (
-                      <Badge tone="accent">Completa</Badge>
-                    ) : null}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
+          {notes.map((note) => (
+            <li key={note.id}>
+              <Link
+                href={`/aggiungi/note/${note.id}`}
+                className="flex h-full min-h-24 flex-col gap-2 rounded-2xl border border-border bg-surface p-4"
+              >
+                <span className="font-medium">{note.title}</span>
+                {note.body ? <span className="line-clamp-2 text-sm text-muted">{note.body}</span> : null}
+                <span className="mt-auto flex items-center gap-2 text-sm text-muted">
+                  <PrivateMark visibility={note.visibility} />
+                </span>
+              </Link>
+            </li>
+          ))}
         </ul>
       ) : (
-        <EmptyState>{kind === "lista" ? "Nessuna lista. Prova con la lista della spesa." : "Nessuna nota."}</EmptyState>
+        <EmptyState>Nessuna nota.</EmptyState>
       )}
     </Section>
   );

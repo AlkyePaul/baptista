@@ -14,7 +14,7 @@ export type { FoodFacts };
 
 const BASE = "https://world.openfoodfacts.org";
 const TIMEOUT_MS = 8_000;
-const FIELDS = "code,product_name,product_name_it,brands,nutriments";
+const FIELDS = "code,product_name,product_name_it,brands,nutriments,categories_tags";
 const USER_AGENT = "Baptista/0.1 (prototipo domestico)";
 
 async function getJson(path: string): Promise<unknown> {

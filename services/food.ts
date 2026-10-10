@@ -4,7 +4,7 @@ import { z } from "zod";
 import { throwIfDbError } from "@/lib/errors";
 import type { FoodItem } from "@/lib/db/types";
 import type { FoodFacts } from "@/lib/openfoodfacts-parse";
-import { FOOD_CATEGORIES, STORAGES, UNITS } from "@/lib/food";
+import { FOOD_CATEGORIES, STORAGES, UNITS, type FoodCategory } from "@/lib/food";
 import type { ExecutionContext } from "@/lib/households/context";
 import { visibilitySchema } from "@/lib/households/permissions";
 import {
@@ -141,5 +141,6 @@ export async function knownFoods(ctx: ExecutionContext): Promise<FoodFacts[]> {
     protein_100g: f.protein_100g === null ? null : Number(f.protein_100g),
     carbs_100g: f.carbs_100g === null ? null : Number(f.carbs_100g),
     fat_100g: f.fat_100g === null ? null : Number(f.fat_100g),
+    category: f.category as FoodCategory,
   }));
 }

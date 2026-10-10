@@ -87,6 +87,8 @@ export type Goal = RecordBase & {
   current_value: number;
   unit: string | null;
   target_date: string | null;
+  /** C9: progress counted from this habit's entries (no manual progress). */
+  habit_id: string | null;
 };
 
 export type Habit = RecordBase & {
@@ -158,6 +160,74 @@ export type DietEntry = {
   fat_g: number | null;
   meal_id: string | null;
   created_at: string;
+};
+
+// Lista della spesa (Phase 04.1) -----------------------------------------------------------
+
+export type ShoppingItem = {
+  id: string;
+  household_id: string;
+  owner_user_id: string | null;
+  kind: "food" | "other";
+  name: string;
+  name_key: string;
+  quantity: number | null;
+  unit: string | null;
+  brand: string | null;
+  barcode: string | null;
+  category: string | null;
+  kcal_100g: number | null;
+  protein_100g: number | null;
+  carbs_100g: number | null;
+  fat_100g: number | null;
+  storage: "fridge" | "freezer" | "pantry" | null;
+  status: "open" | "stocked" | "done" | "removed";
+  food_item_id: string | null;
+  stock_batch_id: string | null;
+  sort_order: number;
+  version: number;
+  created_at: string;
+};
+
+export type PantryStaple = { id: string; name: string; name_key: string; barcode: string | null; status: "staple" | "declined" };
+
+/** Per-viewer memory of what Baptista said and how it was answered (B-4). */
+export type Presentation = {
+  key: string;
+  observation_id: string | null;
+  first_shown_at: string;
+  last_shown_at: string;
+  show_count: number;
+  last_variant: string | null;
+  outcome: "shown" | "answered" | "acted" | "snoozed" | "dismissed" | "failed";
+  snoozed_until: string | null;
+  script_step: string | null;
+  result_text: string | null;
+};
+
+// Guardaroba (D28: manual) -------------------------------------------------------------------
+
+export type WardrobeItem = RecordBase & {
+  name: string;
+  type: string;
+  subtype: string | null;
+  primary_color: string | null;
+  secondary_colors: string[];
+  pattern: string | null;
+  material: string | null;
+  seasons: string[];
+  formality: string | null;
+  brand: string | null;
+  size: string | null;
+  tags: string[];
+  notes: string | null;
+  original_path: string | null;
+  thumb_path: string | null;
+  processed_path: string | null;
+  status: "active" | "archived";
+  /** A-2: how the item arrived; `expense_id` links the purchase in Finanze. */
+  acquisition: "unknown" | "purchased" | "gift" | "owned_before";
+  expense_id: string | null;
 };
 
 // Finanze (D26) ------------------------------------------------------------------------------

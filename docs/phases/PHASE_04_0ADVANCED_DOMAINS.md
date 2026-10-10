@@ -1,8 +1,10 @@
-# PHASE 04 — Advanced domains e visual intake
+# PHASE 04 — Advanced domains (deterministici)
+
+> **D28 (decisione utente 2026-10-10):** la fase 04 chiude un prodotto interamente deterministico. Router AI, ai_settings/ai_runs, visual_intakes, estrazione scontrini e classificazione/segmentazione del guardaroba passano all'inizio della fase 05. I punti sotto relativi alla vision restano come riferimento del contratto, eseguiti in 05.
 
 ## Goal
 
-Inventario cibo, spese/scontrini e guardaroba con processori visuali e review prima del salvataggio.
+Cucina, Finanze e Guardaroba utilizzabili senza AI: inventario e diario, spese/budget/progetti, capi fotografati e classificati a mano con foto private.
 
 ## Why this phase exists
 
@@ -16,7 +18,7 @@ Se una condizione manca, completare soltanto l'analisi indipendente e registrare
 
 ## Scope
 
-Food inventory e detector; finance manuale e righe; receipt intake; wardrobe; bucket privati; adapter vision/image_processing, registry/privacy/settings minimi e ai_runs per processamento.
+Food inventory e detector; finance manuale e righe; wardrobe manuale; bucket privati con validazione upload e derivati senza EXIF; foto dello scontrino allegabile alla spesa senza estrazione. (Fino a D28 lo scope includeva anche adapter vision/image_processing, registry/privacy/settings minimi, ai_runs e receipt intake: ora in fase 05.)
 
 ## Explicitly out of scope
 
@@ -61,6 +63,9 @@ Le prove devono indicare comando/scenario, ambiente e risultato reale. Un test s
 Food/finance/wardrobe usabili manualmente e con intake vision quando capability disponibile; review e conferma verificati; router minimo condiviso.
 
 ## Definition of done
+
+**Dopo D28:** domini Cucina/Finanze/Guardaroba usabili e verificati senza AI; upload validato (byte reali, MIME, dimensioni, pixel), foto private leggibili solo secondo la visibilità del record, derivati senza EXIF, nessun provider AI chiamato. Il testo seguente vale per la pipeline vision, ora criterio della fase 05.
+
 
 Almeno una pipeline vision concreta validata, separazione segmentazione/classificazione effettiva e tutti i fallback privacy-safe. Provider indisponibile non blocca CRUD manuale, ma una pipeline non verificata resta issue/gate incompleto. Moduli e migrazioni sono revisionabili; nessun segreto tracciato; docs allineati al comportamento; STATUS riporta ciò che è realmente verificato.
 

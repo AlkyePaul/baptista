@@ -12,7 +12,7 @@ Remote migrations applied through the Supabase MCP/Dashboard get their version f
 
 ### Applied migrations
 
-`20261009164314_baptista_create_schema`, `20261009192058_baptista_foundations`, `20261009192227_baptista_core_domains`, `20261009212333_baptista_goal_direction`, `20261009212442_baptista_function_grants`, `20261009215527_baptista_categories`, `20261009224445_baptista_kitchen`, `20261009224541_baptista_finance` (remote SQL equal to the files except some comment banners). New functions inherit EXECUTE for PUBLIC: always revoke it (a DB test enforces that anon/public have nothing).
+`20261009164314_baptista_create_schema`, `20261009192058_baptista_foundations`, `20261009192227_baptista_core_domains`, `20261009212333_baptista_goal_direction`, `20261009212442_baptista_function_grants`, `20261009215527_baptista_categories`, `20261009224445_baptista_kitchen`, `20261009224541_baptista_finance`, `20261010202151_baptista_wardrobe`, `20261010202428_baptista_connections`, `20261010202448_baptista_presentation` (remote SQL equal to the files except some comment banners). New functions inherit EXECUTE for PUBLIC: always revoke it (a DB test enforces that anon/public have nothing).
 
 ### Schema `baptista` (created 2026-10-09)
 
@@ -47,7 +47,7 @@ Full stack alternative: `npx supabase start` (requires Docker) using `supabase/c
 | Bucket | Visibility | Phase |
 | --- | --- | --- |
 | `baptista-receipts` | private | 04 |
-| `baptista-wardrobe` | private | 04 |
+| `baptista-wardrobe` | private, 10 MB, JPEG/PNG/WebP; policies `baptista_wardrobe_{insert,select,delete}` | 04 (migration `baptista_wardrobe`) |
 | `baptista-avatars` | private | 02 |
 
 Object path: `<household_uuid>/<owner_uuid>/<upload_uuid>/<server_generated_name>`. Policies on `storage.objects` are scoped by `bucket_id` and never alter existing policies (e.g. GuideApp's public `avatars` bucket). Constants live in `lib/supabase/schema.ts`.

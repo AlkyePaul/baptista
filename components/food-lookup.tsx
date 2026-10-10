@@ -51,7 +51,7 @@ export function FoodLookup({
     const set = (name: string | undefined, value: string) => {
       if (!name) return;
       const input = form.elements.namedItem(name);
-      if (input instanceof HTMLInputElement) input.value = value;
+      if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement) input.value = value;
     };
     set(targets.name, food.brand && targets.brand === undefined ? `${food.name} (${food.brand})` : food.name);
     set(targets.brand, food.brand ?? "");
@@ -61,6 +61,7 @@ export function FoodLookup({
     set("carbs_100g", fmt(food.carbs_100g));
     set("fat_100g", fmt(food.fat_100g));
     set("nutrition_source", "openfoodfacts");
+    if (food.category) set("category", food.category);
     setChosen(food.name);
     setResults(null);
   }

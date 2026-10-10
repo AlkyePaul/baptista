@@ -34,6 +34,12 @@ const MESSAGES: Record<string, string> = {
   category_unavailable: "Puoi usare solo le categorie di sistema o quelle create da te.",
   category_exists: "Hai già una categoria con questo nome.",
   limit_reached: "Hai raggiunto il numero massimo di elementi.",
+  image_invalid: "Il file non è un'immagine JPEG, PNG o WebP valida.",
+  image_too_large: "La foto è troppo grande (massimo 10 MB e 20 megapixel).",
+  image_heic: "Le foto HEIC non sono supportate qui: scatta di nuovo dall'app o esporta in JPEG.",
+  upload_failed: "Caricamento della foto non riuscito. Riprova.",
+  too_few: "Seleziona almeno 7 capi: per meno di 7 rispondi uno per uno.",
+  linked_goal: "Questo obiettivo segue un'abitudine: il progresso si aggiorna da solo.",
   lookup_unavailable: "Open Food Facts non risponde. Riprova tra poco o inserisci i valori a mano.",
 };
 

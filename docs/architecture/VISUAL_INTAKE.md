@@ -1,6 +1,6 @@
 # VISUAL_INTAKE — Immagini, bozze e conferma
 
-Contratto di intake introdotto in fase 04. Registry e privacy sono in AGENT/SECURITY; struttura dati in DATABASE. Non richiede l'agente conversazionale della fase 05.
+Contratto di intake introdotto all'inizio della fase 05 (D28; prima previsto in 04). In fase 04 le foto sono caricate e classificate a mano, senza intake né processori. Registry e privacy sono in AGENT/SECURITY; struttura dati in DATABASE. Non richiede l'agente conversazionale della fase 05.
 
 ## Pipeline e stati
 
@@ -26,7 +26,7 @@ Conferma: expense + expense_items + collegamento intake + receipt.imported nella
 
 Proposta: type, subtype, brand, primary_color, secondary_colors, pattern, estimated_material, season, style, formality, weather_suitability, visible_text/logo, tags e confidenza per attributo. Non trasformare stima materiale in certezza. Immagini con più capi chiedono crop/selezione di un capo nel prototipo, non creano automaticamente N oggetti.
 
-Conservare originale. Segmentazione/background removal è adapter image_processing separato, risultato trasparente dove supportato; semantic classification usa vision. Può classificare l'originale quando derivato non disponibile. Fallimento segmentazione: messaggio e uso originale/crop manuale, nessuna conversione silenziosa a cloud. Fase 04 deve includere un adapter concreto funzionante oppure fallback esplicito con prova capability; sola interfaccia vuota non completa il flusso richiesto.
+Conservare originale. Segmentazione/background removal è adapter image_processing separato, risultato trasparente dove supportato; semantic classification usa vision. Può classificare l'originale quando derivato non disponibile. Fallimento segmentazione: messaggio e uso originale/crop manuale, nessuna conversione silenziosa a cloud. La fase 05 (D28) deve includere un adapter concreto funzionante oppure fallback esplicito con prova capability; sola interfaccia vuota non completa il flusso richiesto.
 
 Review consente modifica di attributi e scelta originale/derivato. Conferma crea un solo wardrobe_item e wardrobe.item_added, con path coerenti. Nessun generatore outfit, virtual try-on o acquisto abbigliamento. L'architettura potrà introdurre outfits/outfit_items/outfit_feedback in una fase futura.
 

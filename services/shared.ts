@@ -15,7 +15,10 @@ export function parseForm<S extends z.ZodType>(schema: S, formData: FormData): P
   const raw: Record<string, unknown> = {};
   for (const [key, value] of formData.entries()) {
     if (key.startsWith("$")) continue; // React internal fields
-    raw[key] = typeof value === "string" && value.trim() === "" ? undefined : value;
+    const v = typeof value === "string" && value.trim() === "" ? undefined : value;
+    if (v === undefined) continue;
+    // Repeated keys (checkbox groups) become arrays.
+    raw[key] = key in raw ? [...(Array.isArray(raw[key]) ? (raw[key] as unknown[]) : [raw[key]]), v] : v;
   }
   const result = schema.safeParse(raw);
   if (result.success) return { ok: true, data: result.data };
@@ -64,7 +67,8 @@ export type Table =
   | "meals"
   | "diet_entries"
   | "expenses"
-  | "finance_goals";
+  | "finance_goals"
+  | "wardrobe_items";
 
 /** Optimistic update scoped to the current household; 0 rows means changed, gone or forbidden. */
 export async function updateVersioned(

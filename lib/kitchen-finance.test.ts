@@ -106,7 +106,12 @@ test("Open Food Facts parsing: Italian name first, kJ fallback, out-of-range val
     protein_100g: 6.3,
     carbs_100g: 57.5,
     fat_100g: 30.9,
+    category: null,
   });
+  assert.equal(toFoodFacts({ product_name: "Yogurt", categories_tags: ["en:dairies", "en:yogurts"] })?.category, "dairy");
+  assert.equal(toFoodFacts({ product_name: "Piselli", categories_tags: ["en:frozen-foods"] })?.category, "frozen");
+  assert.equal(toFoodFacts({ product_name: "Pasta", categories_tags: ["en:pastas"] })?.category, "pantry");
+  assert.equal(toFoodFacts({ product_name: "Strano", categories_tags: "nope" })?.category, null);
   const kj = toFoodFacts({ product_name: "Pane", nutriments: { energy_100g: 1046, fat_100g: 250, proteins_100g: -1 } });
   assert.equal(kj?.kcal_100g, 250);
   assert.equal(kj?.fat_100g, null);

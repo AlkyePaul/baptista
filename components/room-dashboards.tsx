@@ -14,6 +14,10 @@ import type { IconName } from "@/lib/rooms";
 import { getKcalTarget, listDay } from "@/services/diet";
 import { listBudgets, listFinanceGoals, listMonthExpenses, spentByGoal } from "@/services/finance";
 import { listPantry } from "@/services/food";
+import { listWardrobe, signedUrls } from "@/services/wardrobe";
+import { WardrobeGrid } from "@/components/wardrobe-grid";
+import { SEASONS, seasonOf } from "@/lib/wardrobe";
+import { BaptistaRoom } from "@/components/baptista/room";
 
 /** Home of each room: what matters today in that room, computed without any AI (D25/D26). */
 
@@ -35,6 +39,7 @@ export async function KitchenRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
 
   return (
     <>
+      <BaptistaRoom ctx={ctx} room="cucina" />
       <div className="grid grid-cols-3 gap-2">
         <Shortcut href="/stanze/cucina/aggiungi?tipo=alimento" icon="add" label="Alimento" />
         <Shortcut href="/stanze/cucina/aggiungi?tipo=ricetta" icon="receipt" label="Ricette" />
@@ -96,6 +101,7 @@ export async function FinanceRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
 
   return (
     <>
+      <BaptistaRoom ctx={ctx} room="finanze" />
       <div className="grid grid-cols-3 gap-2">
         <Shortcut href="/stanze/finanze/spese" icon="add" label="Spesa" />
         <Shortcut href="/stanze/finanze/budget" icon="target" label="Budget" />
@@ -149,6 +155,41 @@ export async function FinanceRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
         ) : (
           <EmptyState>Nessun progetto di spesa in corso.</EmptyState>
         )}
+      </Section>
+    </>
+  );
+}
+
+export async function WardrobeRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
+  const season = seasonOf(localDate(now, ctx.household.timezone));
+  const items = await listWardrobe(ctx);
+  const inSeason = items.filter((i) => i.seasons.includes(season));
+  const recent = items.slice(0, 4);
+  const urls = await signedUrls(ctx, recent.map((i) => i.thumb_path));
+  const seasonLabel = SEASONS.find((s) => s.id === season)!.label.toLowerCase();
+
+  return (
+    <>
+      <BaptistaRoom ctx={ctx} room="guardaroba" />
+      <div className="grid grid-cols-3 gap-2">
+        <Shortcut href="/stanze/guardaroba/aggiungi" icon="camera" label="Fotografa" />
+        <Shortcut href="/stanze/guardaroba/capi" icon="hanger" label="Capi" />
+        <Shortcut href="/stanze/guardaroba/categorie" icon="tag" label="Categorie" />
+      </div>
+
+      <Section title="Per la stagione" action={<TextLink href={`/stanze/guardaroba/capi?stagione=${season}`}>Vedi</TextLink>}>
+        <Link href={`/stanze/guardaroba/capi?stagione=${season}`} className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4">
+          <span className="text-lg font-semibold">
+            {inSeason.length === 1 ? "1 capo" : `${inSeason.length} capi`} {season === "spring" ? `per la ${seasonLabel}` : `per l’${seasonLabel}`}
+          </span>
+          <span className="text-sm text-muted">
+            {items.length} capi in tutto · {items.filter((i) => i.seasons.length === 0).length} senza stagione indicata
+          </span>
+        </Link>
+      </Section>
+
+      <Section title="Aggiunti di recente" action={<TextLink href="/stanze/guardaroba/capi">Tutti</TextLink>}>
+        {recent.length ? <WardrobeGrid items={recent} urls={urls} /> : <EmptyState>Il guardaroba è vuoto. Fotografa il primo capo.</EmptyState>}
       </Section>
     </>
   );

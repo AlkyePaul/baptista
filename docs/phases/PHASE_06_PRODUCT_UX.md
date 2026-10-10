@@ -28,7 +28,7 @@ Valgono invarianti MASTER_SPEC e contratti architecture. Repository standalone, 
 
 ## Implementation tasks
 
-1. Inventariare flussi e definire token visivi CSS: colori calmi, tipografia, spacing, radius e gerarchia. Riutilizzare Tailwind 4 e componenti esistenti.
+1. Inventariare flussi e definire token visivi CSS: colori calmi, tipografia, spacing, radius e gerarchia. Riutilizzare Tailwind 4 e componenti esistenti. Riferimento: [DESIGN_SYSTEM](../architecture/DESIGN_SYSTEM.md); chiudere il debito elencato nel suo §10.
 2. Home integra calendario oggi, habit/goal e top osservazioni; evidenzia cosa richiede attenzione senza decine di KPI. Avatar rispettano privacy storage.
 3. Implementare navigazione candidata Home/Habits/Lists/Calendar/Baptista e accesso chiaro Kitchen/Finance/Wardrobe; validare etichette per assenza ambiguità Home vs futura stanza casa.
 4. Rendere le schede contestuali tracciabili a fonti e azioni; mantenere distinction date esplicite/stime e nessuna promessa di sicurezza alimentare.

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { deleteRecordAction, updateGoalAction } from "@/app/actions/domains";
-import { ActionButton, ActionForm, CategoryField, Field, SubmitButton, VisibilityField } from "@/components/forms";
+import { ActionButton, ActionForm, CategoryField, Field, SelectField, SubmitButton, VisibilityField } from "@/components/forms";
 import { Card, PageHeader, TextLink } from "@/components/ui";
 import { formatItalianNumber } from "@/lib/goals";
 import { requireExecutionContext } from "@/lib/households/context";
 import { categoryOptions, listMyCategories } from "@/services/categories";
 import { getGoal } from "@/services/goals";
+import { listHabits } from "@/services/habits";
 
 export const metadata: Metadata = { title: "Modifica obiettivo" };
 
@@ -15,7 +16,7 @@ const it = (n: number) => formatItalianNumber(n, false);
 export default async function EditGoalPage({ params }: PageProps<"/abitudini/obiettivi/[id]">) {
   const { id } = await params;
   const ctx = await requireExecutionContext();
-  const [goal, categories] = await Promise.all([getGoal(ctx, id), listMyCategories(ctx)]);
+  const [goal, categories, habits] = await Promise.all([getGoal(ctx, id), listMyCategories(ctx), listHabits(ctx)]);
   if (!goal) notFound();
   const isOwner = goal.owner_user_id === ctx.user.id;
 
@@ -36,6 +37,16 @@ export default async function EditGoalPage({ params }: PageProps<"/abitudini/obi
             <Field label="Unità" name="unit" defaultValue={goal.unit} />
           </div>
           <Field label="Entro il" name="target_date" type="date" defaultValue={goal.target_date} />
+          <SelectField
+            label="Avanza con un'abitudine"
+            name="habit_id"
+            defaultValue={goal.habit_id ?? ""}
+            options={[
+              { value: "", label: "No, aggiorno io il valore" },
+              ...habits.map((h) => ({ value: h.id, label: h.visibility === "private" ? `${h.title} (solo io)` : h.title })),
+            ]}
+          />
+          {goal.habit_id ? <p className="text-sm text-muted">Collegato a un&apos;abitudine: partenza e valore attuale si aggiornano da soli.</p> : null}
           <CategoryField categories={categoryOptions(categories, goal.category)} defaultValue={goal.category_id} />
           {isOwner ? <VisibilityField defaultValue={goal.visibility} /> : <input type="hidden" name="visibility" value={goal.visibility} />}
           <SubmitButton>Salva</SubmitButton>

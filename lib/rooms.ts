@@ -85,7 +85,7 @@ export const ROOMS: Record<RoomId, Room> = {
     label: "Guardaroba",
     icon: "wardrobe",
     description: "I capi di casa, fotografati e classificati",
-    available: false,
+    available: true,
     nav: [
       { href: "/stanze/guardaroba/capi", label: "Capi", icon: "hanger" },
       { href: "/stanze/guardaroba/aggiungi", label: "Aggiungi", icon: "add" },

@@ -12,8 +12,9 @@ Il piano possiede ordine, dipendenze e confini. MASTER_SPEC possiede prodotto/in
 | 01 | [DATABASE](phases/PHASE_01_DATABASE.md) | gate 00 + DB isolato | schema base, RLS fail-closed e diff isolato |
 | 02 | [AUTH_HOUSEHOLD](phases/PHASE_02_AUTH_HOUSEHOLD.md) | gate 01 | flusso household e gate sicurezza multiutente |
 | 03 | [CORE_DOMAINS](phases/PHASE_03_CORE_DOMAINS.md) | gate 02 | domini senza AI, eventi/observations idempotenti |
-| 04 | [ADVANCED_DOMAINS](phases/PHASE_04_ADVANCED_DOMAINS.md) | gate 03 | food/finance/wardrobe, vision concreta e review |
-| 05 | [BAPTISTA_AGENT](phases/PHASE_05_BAPTISTA_AGENT.md) | gate 04 | tools, memoria, routing e conferme verificati |
+| 04 | [ADVANCED_DOMAINS](phases/PHASE_04_ADVANCED_DOMAINS.md) | gate 03 | cucina/finanze/guardaroba deterministici, foto private, nessuna AI (D28) |
+| 04.1 | [CONNECTIONS_AND_BAPTISTA](phases/PHASE_04_1_CONNECTIONS_AND_BAPTISTA.md) | gate 04 (o residui riportati con decisione utente) | lista della spesa e connessioni tra stanze; strato Baptista deterministico (template, espressioni, micro‑conversazioni, memoria di presentazione), nessuna AI (D30) |
+| 05 | [BAPTISTA_AGENT](phases/PHASE_05_BAPTISTA_AGENT.md) | gate 04 | strato AI (router, vision con review), poi tools, memoria e conferme verificati |
 | 06 | [PRODUCT_UX](phases/PHASE_06_PRODUCT_UX.md) | gate 05 | Home/mobile e percorsi coerenti |
 | 07 | [HARDENING](phases/PHASE_07_HARDENING.md) | gate 06 | regressione critica e demo riproducibile |
 
@@ -21,14 +22,15 @@ Ogni gate dipende da tutti i precedenti. Un gate fallito non viene aggirato con 
 
 ## Perché questo ordine
 
-Setup precede schema; schema e isolamento precedono identità; autorizzazione precede dati. Domini strutturati precedono AI perché alimentano calcoli e strumenti affidabili. I processori visuali di 04 trasformano dati in bozze senza orchestrazione; 05 aggiunge l'agente sopra lo stesso routing. La fase 06 rifinisce frontend già esistenti; 07 consolida test già introdotti a ogni fase.
+Setup precede schema; schema e isolamento precedono identità; autorizzazione precede dati. Domini strutturati precedono AI perché alimentano calcoli e strumenti affidabili. La fase 04 chiude un prodotto interamente deterministico (D28); la 05 introduce prima lo strato AI unico (router, processori visuali che producono bozze) e poi l'agente sopra lo stesso routing. La fase 06 rifinisce frontend già esistenti; 07 consolida test già introdotti a ogni fase.
 
 ## Dipendenze anticipate esplicite
 
 - 01 implementa household/profiles/membership; i contratti delle altre tabelle sono documentati ma migrati dalla fase proprietaria. Evitare tabelle future inattive per «preparare tutto».
 - 03 implementa events, observations e ranking deterministico. Non dipendono da SDK o modello AI.
-- 04 implementa ai_settings minimi, ai_runs, registry, provider adapter e router per vision/image_processing. La modalità local_only deve essere sicura già qui. Non rinviare privacy al 05.
-- 05 estende gli stessi moduli a testo/tool/embedding e introduce memoria/suggerimenti/proposte. Nessun doppio router o seconda policy fallback.
+- 04 non introduce AI (D28, decisione utente 2026-10-10): domini manuali, storage privato con validazione upload, foto originali/derivate senza processori AI.
+- 04.1 (D30) collega le stanze con domande/proposte confermate e introduce lo strato Baptista deterministico; ancora nessuna AI. Le domande riusano `observations`.
+- 05 inizia con lo strato AI unico: ai_settings, ai_runs, registry, provider adapter e router per vision/image_processing, visual_intakes, estrazione scontrini e classificazione/segmentazione guardaroba con review; la modalità local_only è sicura fin dal primo invio. Poi estende gli stessi moduli a testo/tool/embedding e introduce memoria/suggerimenti/proposte. Nessun doppio router o seconda policy fallback.
 - UI funzionale, RLS, validazione e casi errore nascono insieme alla feature; non vengono rinviati al polish o hardening.
 
 ## Protocollo di sessione per coding agent

@@ -9,7 +9,11 @@ import { localDate } from "@/lib/dates";
 import { compareByExpiry, expiryState, STATUS_LABELS, STORAGES, UNITS, label } from "@/lib/food";
 import { formatItalianNumber } from "@/lib/goals";
 import { requireExecutionContext } from "@/lib/households/context";
-import { listPantry, listRecentlyClosed } from "@/services/food";
+import { knownFoods, listPantry, listRecentlyClosed } from "@/services/food";
+import { shoppingView } from "@/services/shopping";
+import { ShoppingList } from "@/components/shopping-list";
+import { BaptistaRoom } from "@/components/baptista/room";
+import { nameKey } from "@/lib/shopping";
 
 export const metadata: Metadata = { title: "Dispensa" };
 
@@ -21,7 +25,9 @@ export default async function PantryPage({ searchParams }: PageProps<"/stanze/cu
   const params = await searchParams;
   const filter = FILTERS.find((f) => f.id === params.dove)?.id ?? "tutto";
   const today = localDate(new Date(), ctx.household.timezone);
-  const [all, closed] = await Promise.all([listPantry(ctx), listRecentlyClosed(ctx)]);
+  const [all, closed, known] = await Promise.all([listPantry(ctx), listRecentlyClosed(ctx), knownFoods(ctx)]);
+  const list = await shoppingView(ctx, all);
+  const staples = new Set(list.staples);
   const items = (filter === "tutto" ? all : all.filter((i) => i.storage === filter)).sort(compareByExpiry);
   const attention = items.filter((i) => ["expired", "today", "soon"].includes(expiryState(i, today)));
   const rest = items.filter((i) => !attention.includes(i));
@@ -62,15 +68,19 @@ export default async function PantryPage({ searchParams }: PageProps<"/stanze/cu
         </nav>
       </header>
 
+      <BaptistaRoom ctx={ctx} room="cucina" />
+
+      <ShoppingList items={list.items} inPantry={list.inPantry} staples={list.staples} known={known} />
+
       {attention.length ? (
         <Section title="Da controllare">
-          <FoodList items={attention} today={today} showPlace={filter === "tutto"} />
+          <FoodList items={attention} today={today} showPlace={filter === "tutto"} staples={staples} />
         </Section>
       ) : null}
 
       <Section title={attention.length ? "Il resto" : "In casa"}>
         {rest.length ? (
-          <FoodList items={rest} today={today} showPlace={filter === "tutto"} />
+          <FoodList items={rest} today={today} showPlace={filter === "tutto"} staples={staples} />
         ) : (
           <EmptyState>{items.length ? "Tutto il resto è qui sopra." : "Niente qui. Aggiungi quello che hai comprato."}</EmptyState>
         )}
@@ -98,7 +108,7 @@ export default async function PantryPage({ searchParams }: PageProps<"/stanze/cu
   );
 }
 
-function FoodList({ items, today, showPlace }: { items: FoodItem[]; today: string; showPlace: boolean }) {
+function FoodList({ items, today, showPlace, staples }: { items: FoodItem[]; today: string; showPlace: boolean; staples: Set<string> }) {
   return (
     <Card>
       <ul className="divide-y divide-border">
@@ -120,7 +130,7 @@ function FoodList({ items, today, showPlace }: { items: FoodItem[]; today: strin
               </span>
             </Link>
             <div className="-mx-2 flex justify-end">
-              <FoodQuickActions item={item} />
+              <FoodQuickActions item={item} starred={staples.has(nameKey(item.product_name))} />
             </div>
           </li>
         ))}

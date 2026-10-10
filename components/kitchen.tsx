@@ -1,4 +1,5 @@
 import { setFoodStatusAction } from "@/app/actions/kitchen";
+import { setStapleAction } from "@/app/actions/shopping";
 import { ActionButton, Field, SelectField } from "@/components/forms";
 import { Badge, cx } from "@/components/ui";
 import type { FoodItem } from "@/lib/db/types";
@@ -80,9 +81,18 @@ export function ExpiryBadge({ item, today }: { item: FoodItem; today: string }) 
   return <Badge tone={EXPIRY_TONE[state]}>{text}</Badge>;
 }
 
-export function FoodQuickActions({ item }: { item: FoodItem }) {
+export function FoodQuickActions({ item, starred }: { item: FoodItem; starred?: boolean }) {
   return (
     <div className="flex items-center">
+      {starred === undefined ? null : starred ? (
+        <span className="px-2 text-xs text-[#b98a26]" aria-label="Prodotto abituale">
+          ★ Abituale
+        </span>
+      ) : (
+        <ActionButton action={setStapleAction.bind(null, item.product_name, item.barcode, true)} label={`Segna come abituale: ${item.product_name}`} className="min-h-10 px-2 text-xs">
+          ☆ Abituale
+        </ActionButton>
+      )}
       {item.status === "available" ? (
         <ActionButton action={setFoodStatusAction.bind(null, item.id, item.version, "opened")} label={`Segna come aperto: ${item.product_name}`} className="min-h-10 px-2 text-xs">
           Aperto

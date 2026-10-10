@@ -36,6 +36,8 @@ export default async function HabitsPage({ searchParams }: PageProps<"/abitudini
   const goals = filter ? allGoals.filter((g) => g.category_id === filter) : allGoals;
   const weeks = await getHabitWeeks(ctx, habits.filter((h) => h.active), today);
   const inactive = habits.filter((h) => !h.active);
+  const habitTitles = new Map(allHabits.map((h) => [h.id, h.title]));
+  const habitOptions = allHabits.map((h) => ({ value: h.id, label: h.visibility === "private" ? `${h.title} (solo io)` : h.title }));
   const totals = weeks.reduce(
     (acc, w) => ({ done: acc.done + Math.min(w.count, w.habit.target_per_week), target: acc.target + w.habit.target_per_week }),
     { done: 0, target: 0 },
@@ -211,6 +213,11 @@ export default async function HabitsPage({ searchParams }: PageProps<"/abitudini
                       </div>
                       <PrivateMark visibility={goal.visibility} />
                     </div>
+                    {goal.habit_id ? (
+                      <p className="text-sm text-muted">
+                        Avanza da solo con l&apos;abitudine «{habitTitles.get(goal.habit_id) ?? "collegata"}».
+                      </p>
+                    ) : (
                     <ActionForm action={goalProgressAction.bind(null, goal.id)} resetOnSuccess={false} className="flex-row items-end">
                       <input type="hidden" name="version" value={goal.version} />
                       <Field
@@ -224,6 +231,7 @@ export default async function HabitsPage({ searchParams }: PageProps<"/abitudini
                         Salva
                       </SubmitButton>
                     </ActionForm>
+                    )}
                   </Card>
                 </li>
               );
@@ -246,6 +254,12 @@ export default async function HabitsPage({ searchParams }: PageProps<"/abitudini
               </div>
               <Field label="Unità" name="unit" placeholder="km, kg, €…" />
               <Field label="Entro il" name="target_date" type="date" hint="Facoltativo" />
+              <SelectField
+                label="Avanza con un'abitudine"
+                name="habit_id"
+                defaultValue=""
+                options={[{ value: "", label: "No, aggiorno io il valore" }, ...habitOptions]}
+              />
               <CategoryField categories={categories} defaultValue={filter} />
               <VisibilityField />
               <SubmitButton>Crea</SubmitButton>
