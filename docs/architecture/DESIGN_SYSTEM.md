@@ -145,9 +145,12 @@ Le stanze (D20) colorano **il contenitore**, mai il contenuto. Ogni stanza ha tr
 └──────────────────────────────────────────────┘
 ```
 
-### 4.1 Header [attuale]
+### 4.1 Header [attuale, come il mockup]
 
-Avatar dei membri (max 3 sovrapposti, `-space-x-2`, `ring-2 ring-background`, `+N` oltre), pill della stanza al centro, nome della casa / selettore a destra. **[target]** Il mockup mostra il wordmark «baptista» (minuscolo, `--ink`, semibold) a sinistra e gli avatar a destra con un «+» lavanda per invitare: da valutare in fase 06 insieme alla pill della stanza, che va mantenuta (D20). Il «+» degli avatar segue lo stile pulsante icona (§5.1).
+- **Sinistra:** marchio = Baptista (espressione *suggestion*, 40 px, statico, senza animazioni d'ingresso) + wordmark «baptista» minuscolo `text-2xl font-bold tracking-tight text-ink`. Porta alla Home.
+- **Destra:** pill della stanza compatta (solo icona, cerchio 44 px nel colore della stanza, apre il menu stanze, D20) · avatar dei membri (max 3 sovrapposti, `-space-x-2`, `ring-2 ring-background`, `+N` oltre; portano a Casa) · «+» su cerchio lavanda `bg-highlight text-on-highlight` (proprietario: invita un familiare, `/casa#invita`; membro: Casa).
+- Nessun bordo inferiore: fondo `background/90` con blur. Altezza ~60 px più safe area.
+- Il nome della casa non sta nell'header: è nell'etichetta accessibile degli avatar e nel titolo di Casa; il cambio casa (più membership) vive in Casa → «Le tue case».
 
 ### 4.2 Barra di navigazione variabile [attuale]
 

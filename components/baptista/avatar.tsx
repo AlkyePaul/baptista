@@ -3,13 +3,25 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { cx } from "@/components/ui";
-import { EXPRESSION_ALT, expressionSrc, type Expression } from "@/lib/baptista/expressions";
+import {
+  EXPRESSION_ALT,
+  expressionSrc,
+  type Expression,
+} from "@/lib/baptista/expressions";
 
 /**
  * Baptista's face (B-1, B-6): fades in when he enters; a change of expression is a cross-fade
  * (the new face fades in over the old one), never a cut; the confirmation gets a small bow.
  */
-export function BaptistaAvatar({ expression, size = 56, enter = true }: { expression: Expression; size?: number; enter?: boolean }) {
+export function BaptistaAvatar({
+  expression,
+  size = 56,
+  enter = true,
+}: {
+  expression: Expression;
+  size?: number;
+  enter?: boolean;
+}) {
   const [shown, setShown] = useState(expression);
   const [previous, setPrevious] = useState<Expression | null>(null);
 
@@ -32,13 +44,29 @@ export function BaptistaAvatar({ expression, size = 56, enter = true }: { expres
       width={size}
       height={size}
       unoptimized
-      className={cx("absolute inset-0 h-full w-full object-contain", className)}
+      className={cx(
+        "absolute inset-0 h-full bg-white w-full rounded-full border border-border object-contain",
+        className,
+      )}
     />
   );
 
   return (
-    <span role="img" aria-label={EXPRESSION_ALT[shown]} className={cx("relative block shrink-0", enter && "baptista-enter")} style={{ width: size, height: size }}>
-      <span className={cx("absolute inset-0", shown === "confirmation" && "baptista-bow")}>
+    <span
+      role="img"
+      aria-label={EXPRESSION_ALT[shown]}
+      className={cx(
+        "relative block shrink-0",
+        enter && "baptista-enter bg-white",
+      )}
+      style={{ width: size, height: size }}
+    >
+      <span
+        className={cx(
+          "absolute inset-0",
+          shown === "confirmation" && "baptista-bow",
+        )}
+      >
         {previous ? img(previous) : null}
         {img(shown, previous ? "baptista-fade" : undefined)}
       </span>

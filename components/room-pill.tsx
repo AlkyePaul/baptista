@@ -11,7 +11,7 @@ import { ROOM_IDS, ROOMS, roomForPath, type RoomId } from "@/lib/rooms";
  * Room switcher available on every page (header). Picking a room opens its Home, where the room
  * dashboard and the room's bottom bar take over; the big tiles on Home stay the primary way.
  */
-export function RoomPill({ selected }: { selected: RoomId }) {
+export function RoomPill({ selected, compact = false }: { selected: RoomId; compact?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const details = useRef<HTMLDetailsElement>(null);
@@ -35,18 +35,28 @@ export function RoomPill({ selected }: { selected: RoomId }) {
       <summary
         aria-label={`Stanza: ${room.label}. Cambia stanza`}
         className={cx(
-          "room-tile-active flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-opacity",
+          "room-tile-active flex cursor-pointer list-none items-center rounded-full text-sm font-medium transition-opacity",
+          compact ? "size-11 justify-center" : "min-h-10 gap-1.5 px-3",
           pending && "opacity-60",
         )}
         data-room-tile={current}
       >
         <Icon name={room.icon} className="size-5" />
-        {room.label}
-        <span aria-hidden className="text-xs">
-          ▾
-        </span>
+        {compact ? null : (
+          <>
+            {room.label}
+            <span aria-hidden className="text-xs">
+              ▾
+            </span>
+          </>
+        )}
       </summary>
-      <ul className="absolute left-1/2 z-30 mt-2 grid w-64 -translate-x-1/2 grid-cols-2 gap-2 rounded-2xl border border-border bg-surface p-2 shadow-lg">
+      <ul
+        className={cx(
+          "absolute z-30 mt-2 grid w-64 grid-cols-2 gap-2 rounded-2xl border border-border bg-surface p-2 shadow-lg",
+          compact ? "right-0" : "left-1/2 -translate-x-1/2",
+        )}
+      >
         {ROOM_IDS.map((id) => (
           <li key={id}>
             <button

@@ -12,6 +12,11 @@
   --danger: #a33a2c;
   /* Soft red for list rows already in the pantry (A-1): a hint, never an alarm. */
   --already: #fbe8e3;
+  /* Deep forest green of the wordmark (DESIGN_SYSTEM §2.1). */
+  --ink: #21412f;
+  /* Soft lavender for small header affordances (the «+» next to the avatars). */
+  --highlight: #ece8f8;
+  --on-highlight: #4a3a7a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,6 +30,9 @@
     --on-accent: #10140f;
     --danger: #e0806f;
     --already: #3b2420;
+    --ink: #a9d0b6;
+    --highlight: #2f2848;
+    --on-highlight: #d8cff5;
   }
 }
 
@@ -38,6 +46,9 @@
   --color-on-accent: var(--on-accent);
   --color-danger: var(--danger);
   --color-already: var(--already);
+  --color-ink: var(--ink);
+  --color-highlight: var(--highlight);
+  --color-on-highlight: var(--on-highlight);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }

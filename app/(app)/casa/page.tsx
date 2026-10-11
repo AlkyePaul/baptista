@@ -4,6 +4,7 @@ import {
   inviteMemberAction,
   removeMemberAction,
   respondToInviteAction,
+  selectHouseholdAction,
   transferOwnershipAction,
   updateHouseholdAction,
   updateProfileAction,
@@ -25,6 +26,33 @@ export default async function HouseholdPage() {
   return (
     <>
       <PageHeader title={ctx.household.name} subtitle={isOwner ? "Sei proprietario di questa casa" : "Sei membro di questa casa"} />
+
+      {ctx.memberships.length > 1 ? (
+        <Section title="Le tue case">
+          <Card>
+            <ul className="divide-y divide-border">
+              {ctx.memberships.map((m) => {
+                const current = m.household_id === ctx.household.id;
+                return (
+                  <li key={m.household_id}>
+                    <form action={selectHouseholdAction.bind(null, m.household_id)}>
+                      <button
+                        type="submit"
+                        disabled={current}
+                        aria-current={current ? "true" : undefined}
+                        className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3 text-left aria-[current]:font-semibold"
+                      >
+                        {m.household.name}
+                        {current ? <Badge tone="accent">Attuale</Badge> : <span className="text-sm text-accent">Passa a questa</span>}
+                      </button>
+                    </form>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        </Section>
+      ) : null}
 
       <Section title="Membri">
         <Card>
@@ -86,7 +114,7 @@ export default async function HouseholdPage() {
           </Card>
         ) : null}
         {isOwner ? (
-          <Card className="p-4">
+          <Card id="invita" className="scroll-mt-24 p-4">
             <ActionForm action={inviteMemberAction} successMessage>
               <Field
                 label="Invita un familiare"
