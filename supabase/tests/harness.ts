@@ -97,9 +97,8 @@ export async function createUser(db: Db, name: string, withProfile = true) {
   const user = { id, email: `${name.toLowerCase()}@test.local` };
   await db.query("insert into auth.users (id, email) values ($1, $2)", [id, user.email]);
   if (withProfile) {
-    await as(db, user, (q) =>
-      q("insert into baptista.profiles (user_id, display_name) values ($1, $2)", [id, name]),
-    );
+    // Profiles are provisioned only by claim_invitation; seed them directly as admin.
+    await db.query("insert into baptista.profiles (user_id, display_name) values ($1, $2)", [id, name]);
   }
   return user;
 }

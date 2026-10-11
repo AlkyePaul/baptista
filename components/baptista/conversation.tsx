@@ -2,7 +2,7 @@
 
 import { useEffect, useReducer, useRef, useState, useTransition } from "react";
 import { answerAction, dismissForMeAction, markShownAction, saveStepAction, undoAction } from "@/app/actions/baptista";
-import { Visual } from "@/components/briefing";
+import { Visual } from "./visual";
 import { buttonClass, cx } from "@/components/ui";
 import { expressionFor } from "@/lib/baptista/expressions";
 import { reduce, resumeFrom, type ConversationState } from "@/lib/baptista/machine";

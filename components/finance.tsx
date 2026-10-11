@@ -1,5 +1,4 @@
 import { CategoryField, Field, SelectField, VisibilityField } from "@/components/forms";
-import { Icon } from "@/components/icons";
 import { cx } from "@/components/ui";
 import type { Expense, ExpenseCategory, FinanceGoal } from "@/lib/db/types";
 import { formatItalianNumber } from "@/lib/goals";
@@ -47,22 +46,6 @@ export function ExpenseFields({
       </div>
       <VisibilityField defaultValue={expense?.visibility} />
     </>
-  );
-}
-
-/** Honest placeholder until a vision provider is configured (Phase 04 gate, VISUAL_INTAKE). */
-export function ReceiptScanUnavailable() {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border px-4 py-8 text-center">
-      <span className="flex size-14 items-center justify-center rounded-2xl bg-foreground/5 text-muted">
-        <Icon name="camera" className="size-8" />
-      </span>
-      <p className="font-medium">Scansione dello scontrino non ancora attiva</p>
-      <p className="text-sm text-muted">
-        Servirà un servizio di lettura immagini configurato sul server. La foto resterà privata e i dati letti andranno sempre controllati prima di salvare.
-        Per ora usa «Manuale».
-      </p>
-    </div>
   );
 }
 

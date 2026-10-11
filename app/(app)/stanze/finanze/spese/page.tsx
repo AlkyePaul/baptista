@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createExpenseAction } from "@/app/actions/finance";
-import { ActionForm, SubmitButton } from "@/components/forms";
-import { BudgetBar, ExpenseFields, Money, ReceiptScanUnavailable } from "@/components/finance";
-import { Modal, Tabs } from "@/components/modal";
+import { BudgetBar, Money } from "@/components/finance";
 import { buttonClass, Card, cx, EmptyState, PrivateMark, Section } from "@/components/ui";
 import type { Expense } from "@/lib/db/types";
 import { addMonths, formatMonth, isMonth, localDate, monthOf, relativeDay } from "@/lib/dates";
 import { requireExecutionContext } from "@/lib/households/context";
 import { BaptistaRoom } from "@/components/baptista/room";
 import { addAmounts, budgetUsage, totalsByCurrency } from "@/lib/money";
-import { listBudgets, listExpenseCategories, listFinanceGoals, listMonthExpenses } from "@/services/finance";
+import { listBudgets, listExpenseCategories, listMonthExpenses } from "@/services/finance";
 
 export const metadata: Metadata = { title: "Spese" };
 
@@ -22,12 +19,7 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/stanze/
   const thisMonth = monthOf(today);
   const month = typeof params.mese === "string" && isMonth(params.mese) && params.mese <= thisMonth ? params.mese : thisMonth;
 
-  const [expenses, categories, goals, budgets] = await Promise.all([
-    listMonthExpenses(ctx, month),
-    listExpenseCategories(ctx),
-    listFinanceGoals(ctx),
-    listBudgets(ctx),
-  ]);
+  const [expenses, categories, budgets] = await Promise.all([listMonthExpenses(ctx, month), listExpenseCategories(ctx), listBudgets(ctx)]);
   const totals = totalsByCurrency(expenses);
   const main = totals[0]?.currency ?? "EUR";
   const overall = budgets.find((b) => b.category_id === null && b.currency === main);
@@ -102,23 +94,9 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/stanze/
         {totals.length > 1 ? <p className="text-xs text-muted">Valute diverse sono mostrate separatamente, mai sommate.</p> : null}
       </Card>
 
-      <Modal trigger="+ Aggiungi spesa" title="Nuova spesa">
-        <Tabs
-          tabs={[
-            {
-              id: "manuale",
-              label: "Manuale",
-              content: (
-                <ActionForm action={createExpenseAction} successMessage>
-                  <ExpenseFields categories={categories} goals={goals} today={today} />
-                  <SubmitButton>Salva spesa</SubmitButton>
-                </ActionForm>
-              ),
-            },
-            { id: "scontrino", label: "Scontrino", content: <ReceiptScanUnavailable /> },
-          ]}
-        />
-      </Modal>
+      <Link href="/stanze/finanze/aggiungi?tipo=spesa" className={cx(buttonClass.primary, "w-full")}>
+        + Aggiungi spesa
+      </Link>
 
       <Section title="Movimenti">
         {byDay.size ? (

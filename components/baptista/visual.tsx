@@ -1,79 +1,13 @@
-import Link from "next/link";
-import { dismissObservationAction } from "@/app/actions/domains";
-import { ActionButton } from "@/components/forms";
 import { ProgressRing, ringColor } from "@/components/progress-ring";
-import { cx, EmptyState } from "@/components/ui";
+import { cx } from "@/components/ui";
 import { formatTime, localDate } from "@/lib/dates";
-import type { BriefingItem, BriefingVisual } from "@/lib/intelligence/briefing";
+import type { BriefingVisual } from "@/lib/intelligence/briefing";
 
 const MONTHS = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
 const DANGER = "#c4553f";
 
-const TONE_SURFACE: Record<BriefingItem["tone"], string> = {
-  urgent: "border-danger/30 bg-danger/[0.06]",
-  normal: "border-accent/30 bg-accent/[0.07]",
-  info: "border-border bg-surface",
-};
-
-/** "In evidenza": the top situation as a hero card, the next two as tiles. */
-export function Briefing({
-  items,
-  timeZone,
-  colors = {},
-}: {
-  items: BriefingItem[];
-  timeZone: string;
-  /** Source id → colour (category colour when assigned). */
-  colors?: Record<string, string>;
-}) {
-  if (!items.length) {
-    return <EmptyState>Niente di urgente. Buona giornata!</EmptyState>;
-  }
-  const [hero, ...rest] = items;
-  return (
-    <div className="flex flex-col gap-2">
-      <article className={cx("relative flex items-center gap-4 rounded-3xl border p-4 pr-12", TONE_SURFACE[hero.tone])}>
-        <Visual item={hero} size={84} timeZone={timeZone} color={colors[hero.sourceId]} />
-        <Link href={hero.href} className="flex min-h-11 flex-1 flex-col gap-1">
-          <span className="text-lg leading-snug font-semibold">{hero.title}</span>
-          {hero.description ? <span className="text-sm text-muted">{hero.description}</span> : null}
-        </Link>
-        <Dismiss item={hero} />
-      </article>
-      {rest.length ? (
-        <div className="grid grid-cols-2 gap-2">
-          {rest.map((item) => (
-            <article key={item.id} className={cx("relative flex flex-col gap-2 rounded-3xl border p-3 pr-10", TONE_SURFACE[item.tone])}>
-              <Visual item={item} size={56} timeZone={timeZone} color={colors[item.sourceId]} />
-              <Link href={item.href} className="flex min-h-11 flex-col gap-0.5">
-                <span className="line-clamp-2 text-sm leading-snug font-semibold">{item.title}</span>
-                {item.description ? <span className="line-clamp-2 text-xs text-muted">{item.description}</span> : null}
-              </Link>
-              <Dismiss item={item} />
-            </article>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function Dismiss({ item }: { item: BriefingItem }) {
-  return (
-    <div className="absolute top-2 right-2">
-      <ActionButton
-        action={dismissObservationAction.bind(null, item.id)}
-        label={`Ignora: ${item.title}`}
-        className="size-9 min-h-9 rounded-full p-0 text-lg"
-      >
-        <span aria-hidden>×</span>
-      </ActionButton>
-    </div>
-  );
-}
-
 /** The D23 visuals (ring, day counter, date tile); also the thumbnail next to Baptista's text. */
-export function Visual({ item, size, timeZone, color }: { item: Pick<BriefingItem, "visual" | "sourceId">; size: number; timeZone: string; color?: string }) {
+export function Visual({ item, size, timeZone, color }: { item: { visual: BriefingVisual; sourceId: string }; size: number; timeZone: string; color?: string }) {
   const v: BriefingVisual = item.visual;
   const big = size >= 80;
   switch (v.kind) {

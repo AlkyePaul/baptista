@@ -9,11 +9,10 @@ import { localDate } from "@/lib/dates";
 import { compareByExpiry, expiryState, STATUS_LABELS, STORAGES, UNITS, label } from "@/lib/food";
 import { formatItalianNumber } from "@/lib/goals";
 import { requireExecutionContext } from "@/lib/households/context";
-import { knownFoods, listPantry, listRecentlyClosed } from "@/services/food";
+import { listPantry, listRecentlyClosed } from "@/services/food";
 import { shoppingView } from "@/services/shopping";
 import { ShoppingList } from "@/components/shopping-list";
 import { BaptistaRoom } from "@/components/baptista/room";
-import { nameKey } from "@/lib/shopping";
 
 export const metadata: Metadata = { title: "Dispensa" };
 
@@ -25,7 +24,7 @@ export default async function PantryPage({ searchParams }: PageProps<"/stanze/cu
   const params = await searchParams;
   const filter = FILTERS.find((f) => f.id === params.dove)?.id ?? "tutto";
   const today = localDate(new Date(), ctx.household.timezone);
-  const [all, closed, known] = await Promise.all([listPantry(ctx), listRecentlyClosed(ctx), knownFoods(ctx)]);
+  const [all, closed] = await Promise.all([listPantry(ctx), listRecentlyClosed(ctx)]);
   const list = await shoppingView(ctx, all);
   const staples = new Set(list.staples);
   const items = (filter === "tutto" ? all : all.filter((i) => i.storage === filter)).sort(compareByExpiry);
@@ -42,7 +41,7 @@ export default async function PantryPage({ searchParams }: PageProps<"/stanze/cu
               {all.length === 1 ? "1 alimento in casa" : `${all.length} alimenti in casa`}
             </p>
           </div>
-          <Link href="/stanze/cucina/aggiungi?tipo=alimento" className={cx(buttonClass.primary, "px-4")}>
+          <Link href="/stanze/cucina/aggiungi" className={cx(buttonClass.primary, "px-4")}>
             + Alimento
           </Link>
         </div>
@@ -70,7 +69,7 @@ export default async function PantryPage({ searchParams }: PageProps<"/stanze/cu
 
       <BaptistaRoom ctx={ctx} room="cucina" />
 
-      <ShoppingList items={list.items} inPantry={list.inPantry} staples={list.staples} known={known} />
+      <ShoppingList items={list.items} inPantry={list.inPantry} staples={list.staples} />
 
       {attention.length ? (
         <Section title="Da controllare">
@@ -130,7 +129,7 @@ function FoodList({ items, today, showPlace, staples }: { items: FoodItem[]; tod
               </span>
             </Link>
             <div className="-mx-2 flex justify-end">
-              <FoodQuickActions item={item} starred={staples.has(nameKey(item.product_name))} />
+              <FoodQuickActions item={item} starred={staples.has(item.food_id)} />
             </div>
           </li>
         ))}

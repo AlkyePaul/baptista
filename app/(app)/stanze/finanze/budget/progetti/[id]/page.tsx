@@ -15,7 +15,7 @@ import { getRecord } from "@/services/shared";
 export const metadata: Metadata = { title: "Progetto di spesa" };
 
 /** Estimate ("preventivo") lines editable over time; the first total is kept for comparison. */
-export default async function FinanceGoalPage({ params }: PageProps<"/stanze/finanze/budget/obiettivi/[id]">) {
+export default async function FinanceGoalPage({ params }: PageProps<"/stanze/finanze/budget/progetti/[id]">) {
   const { id } = await params;
   const ctx = await requireExecutionContext();
   const goal = await getRecord<FinanceGoal>(ctx, "finance_goals", id);
@@ -31,7 +31,7 @@ export default async function FinanceGoalPage({ params }: PageProps<"/stanze/fin
 
   return (
     <>
-      <TextLink href="/stanze/finanze/budget#progetti">← Budget e obiettivi</TextLink>
+      <TextLink href="/stanze/finanze/budget#progetti">← Budget e progetti</TextLink>
       <PageHeader title={goal.title} subtitle={goal.target_date ? `Entro ${formatDay(goal.target_date)}` : undefined} />
 
       <Card className="flex flex-col gap-3 p-4">

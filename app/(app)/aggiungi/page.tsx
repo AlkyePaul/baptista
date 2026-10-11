@@ -8,7 +8,7 @@ import { addDays, formatTime, isCivilDate, localDate, relativeDay, toLocalInput 
 import { requireExecutionContext, type ExecutionContext } from "@/lib/households/context";
 import { eventStartDay, listEventsBetween } from "@/services/calendar";
 import { listNotes } from "@/services/notes";
-import { knownFoods, listPantry } from "@/services/food";
+import { listPantry } from "@/services/food";
 import { shoppingView } from "@/services/shopping";
 import { ShoppingList } from "@/components/shopping-list";
 import { ListAccordion } from "@/components/list-accordion";
@@ -238,11 +238,11 @@ async function ExistingItems({ kind, ctx, more }: { kind: Kind; ctx: ExecutionCo
 
   if (kind === "lista") {
     // Phase 04.1 (A-1): the household shopping list is pinned first; every list is an accordion.
-    const [lists, pantry, known] = await Promise.all([listNotes(ctx, limit, "list"), listPantry(ctx), knownFoods(ctx)]);
+    const [lists, pantry] = await Promise.all([listNotes(ctx, limit, "list"), listPantry(ctx)]);
     const shoppingList = await shoppingView(ctx, pantry);
     return (
       <Section title="Le tue liste">
-        <ShoppingList items={shoppingList.items} inPantry={shoppingList.inPantry} staples={shoppingList.staples} known={known} defaultOpen={false} />
+        <ShoppingList items={shoppingList.items} inPantry={shoppingList.inPantry} staples={shoppingList.staples} defaultOpen={false} />
         {lists.map((note) => {
           const open = note.items.filter((i) => !i.done).length;
           return (

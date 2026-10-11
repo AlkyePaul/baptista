@@ -5,7 +5,8 @@ import { DomainError, throwIfDbError } from "@/lib/errors";
 import type { DietEntry, Meal } from "@/lib/db/types";
 import type { ExecutionContext, UserContext } from "@/lib/households/context";
 import { mealTotals, portion, SLOTS } from "@/lib/nutrition";
-import { nutritionFields } from "@/services/food";
+import { getFood } from "@/services/catalog";
+import { listMealItems } from "@/services/meals";
 import { civilDate, decimal, getRecord, optionalDecimal, requiredText } from "@/services/shared";
 
 const slot = z.enum(SLOTS.map((s) => s.id) as ["breakfast", "lunch", "dinner", "snack"], { error: "Scegli il pasto." });
@@ -21,18 +22,13 @@ export const quickEntrySchema = z.object({
   fat_g: optionalDecimal("Grassi", { max: 2000, decimals: 1 }),
 });
 
-/** A food by weight: values per 100 g (from Open Food Facts or the inventory) times grams. */
-export const foodEntrySchema = z
-  .object({
-    eaten_on: civilDate(),
-    slot,
-    label: requiredText(120, "Scrivi l'alimento."),
-    grams: decimal("Grammi", { exclusiveMin: true, max: 10000, decimals: 1 }),
-    ...nutritionFields,
-  })
-  .superRefine((v, ctx) => {
-    if (v.kcal_100g === null) ctx.addIssue({ code: "custom", path: ["kcal_100g"], message: "Indica le calorie per 100 g." });
-  });
+/** A catalog food by weight: nutrition from the catalog times grams (D31). */
+export const foodEntrySchema = z.object({
+  eaten_on: civilDate(),
+  slot,
+  food_id: z.uuid({ error: "Scegli un alimento." }),
+  grams: decimal("Grammi", { exclusiveMin: true, max: 10000, decimals: 1 }),
+});
 
 export const mealEntrySchema = z.object({
   eaten_on: civilDate(),
@@ -56,16 +52,27 @@ export async function addQuickEntry(ctx: ExecutionContext, input: z.infer<typeof
 }
 
 export async function addFoodEntry(ctx: ExecutionContext, input: z.infer<typeof foodEntrySchema>) {
-  const { kcal_100g, protein_100g, carbs_100g, fat_100g, ...rest } = input;
-  const t = portion({ kcal_100g: kcal_100g ?? 0, protein_100g, carbs_100g, fat_100g }, rest.grams);
-  await insertEntry(ctx, { ...rest, kcal: t.kcal, protein_g: t.protein, carbs_g: t.carbs, fat_g: t.fat });
+  const food = await getFood(ctx, input.food_id);
+  if (!food) throw new DomainError("not_found");
+  if (food.kcal_100g === null) throw new DomainError("invalid", "Questo alimento non ha le calorie: aggiungile negli alimenti di casa.");
+  const t = portion({ ...food, kcal_100g: food.kcal_100g }, input.grams);
+  await insertEntry(ctx, {
+    eaten_on: input.eaten_on,
+    slot: input.slot,
+    label: food.name,
+    grams: input.grams,
+    kcal: t.kcal,
+    protein_g: t.protein,
+    carbs_g: t.carbs,
+    fat_g: t.fat,
+  });
 }
 
 /** Snapshot of a saved meal (the meal can change later without rewriting the diary). */
 export async function addMealEntry(ctx: ExecutionContext, input: z.infer<typeof mealEntrySchema>) {
   const meal = await getRecord<Meal>(ctx, "meals", input.meal_id);
   if (!meal) throw new DomainError("not_found");
-  const t = mealTotals(meal.items);
+  const t = mealTotals(await listMealItems(ctx, [meal.id]));
   const f = input.portions;
   const scale = (v: number | null) => (v === null ? null : Math.round(v * f * 10) / 10);
   await insertEntry(ctx, {

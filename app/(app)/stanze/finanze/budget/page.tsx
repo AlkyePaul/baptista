@@ -2,25 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   createExpenseCategoryAction,
-  createFinanceGoalAction,
   deleteBudgetAction,
   deleteExpenseCategoryAction,
-  setBudgetAction,
 } from "@/app/actions/finance";
-import { ActionButton, ActionForm, ColorField, Field, SelectField, SubmitButton, VisibilityField } from "@/components/forms";
+import { ActionButton, ActionForm, ColorField, Field, SubmitButton } from "@/components/forms";
 import { BudgetBar, Money } from "@/components/finance";
-import { Modal } from "@/components/modal";
 import { Badge, buttonClass, Card, cx, EmptyState, PrivateMark, Section } from "@/components/ui";
 import { CATEGORY_COLORS } from "@/lib/categories";
 import type { Budget, ExpenseCategory, FinanceGoal } from "@/lib/db/types";
 import { formatDay, formatMonth, localDate, monthOf } from "@/lib/dates";
 import { requireExecutionContext } from "@/lib/households/context";
-import { addAmounts, budgetUsage, CURRENCIES, monthElapsedShare } from "@/lib/money";
+import { addAmounts, budgetUsage, monthElapsedShare } from "@/lib/money";
 import { listBudgets, listExpenseCategories, listFinanceGoals, listMonthExpenses, spentByGoal } from "@/services/finance";
 
-export const metadata: Metadata = { title: "Budget e obiettivi" };
+export const metadata: Metadata = { title: "Budget e progetti" };
 
-/** Monthly budgets per category + spending goals with a revisable estimate (D26). */
+/** Monthly budgets per category + spending projects with a revisable estimate (D26). */
 export default async function BudgetPage() {
   const ctx = await requireExecutionContext();
   const today = localDate(new Date(), ctx.household.timezone);
@@ -44,7 +41,7 @@ export default async function BudgetPage() {
   return (
     <>
       <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Budget e obiettivi</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Budget e progetti</h1>
         <p className="text-muted first-letter:uppercase">
           {formatMonth(month)} · trascorso il {elapsed}% del mese
         </p>
@@ -53,21 +50,9 @@ export default async function BudgetPage() {
       <Section
         title="Budget del mese"
         action={
-          <Modal trigger="Imposta" title="Budget mensile" triggerClassName={cx(buttonClass.secondary, "min-h-10 px-4 text-sm")}>
-            <ActionForm action={setBudgetAction} successMessage>
-              <SelectField
-                label="Per"
-                name="category_id"
-                options={[{ value: "", label: "Tutte le spese (totale)" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
-              />
-              <div className="grid grid-cols-[1fr_6.5rem] gap-3">
-                <Field label="Importo al mese" name="monthly_amount" inputMode="decimal" placeholder="Es. 400" />
-                <SelectField label="Valuta" name="currency" defaultValue="EUR" options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
-              </div>
-              <p className="text-xs text-muted">Se esiste già un budget per questa voce viene aggiornato. È condiviso con la casa.</p>
-              <SubmitButton>Salva budget</SubmitButton>
-            </ActionForm>
-          </Modal>
+          <Link href="/stanze/finanze/aggiungi?tipo=budget" className={cx(buttonClass.secondary, "min-h-10 px-4 text-sm")}>
+            Imposta
+          </Link>
         }
       >
         {budgets.length ? (
@@ -88,18 +73,9 @@ export default async function BudgetPage() {
         title="Progetti di spesa"
         id="progetti"
         action={
-          <Modal trigger="+ Nuovo" title="Nuovo progetto" triggerClassName={cx(buttonClass.secondary, "min-h-10 px-4 text-sm")}>
-            <ActionForm action={createFinanceGoalAction}>
-              <Field label="Progetto" name="title" placeholder="Es. Vacanza in Puglia" required />
-              <div className="grid grid-cols-[1fr_6.5rem] gap-3">
-                <Field label="Entro il" name="target_date" type="date" hint="Facoltativo" />
-                <SelectField label="Valuta" name="currency" defaultValue="EUR" options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
-              </div>
-              <Field label="Preventivo" name="estimate_lines" multiline hint="Una voce per riga con l'importo alla fine, es. «Volo 300», «Hotel 1.250». Potrai cambiarlo nel tempo." />
-              <VisibilityField />
-              <SubmitButton>Crea progetto</SubmitButton>
-            </ActionForm>
-          </Modal>
+          <Link href="/stanze/finanze/aggiungi?tipo=progetto" className={cx(buttonClass.secondary, "min-h-10 px-4 text-sm")}>
+            + Nuovo
+          </Link>
         }
       >
         {goals.length ? (
@@ -179,7 +155,7 @@ function GoalCard({ goal, spent }: { goal: FinanceGoal; spent: number }) {
   const changed = Math.abs(estimate - Number(goal.initial_estimate)) >= 0.01;
   return (
     <li>
-      <Link href={`/stanze/finanze/budget/obiettivi/${goal.id}`} className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
+      <Link href={`/stanze/finanze/budget/progetti/${goal.id}`} className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
         <span className="flex items-start justify-between gap-2">
           <span className="font-medium">{goal.title}</span>
           <span className="flex gap-1">

@@ -1,61 +1,86 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { addMealEntryAction, addMealItemAction, deleteKitchenRecordAction, removeMealItemAction, updateMealAction } from "@/app/actions/kitchen";
+import {
+  addMealEntryAction,
+  addMealItemAction,
+  addMealRecipeAction,
+  deleteKitchenRecordAction,
+  removeMealItemAction,
+  setMealItemGramsAction,
+  updateMealAction,
+} from "@/app/actions/kitchen";
+import { FoodPicker } from "@/components/food-picker";
 import { ActionButton, ActionForm, Field, SelectField, SubmitButton, VisibilityField } from "@/components/forms";
-import { FoodLookup } from "@/components/food-lookup";
-import { MacroLine, NutritionFields } from "@/components/kitchen";
+import { MacroLine } from "@/components/kitchen";
 import { Card, EmptyState, PageHeader, Section, TextLink } from "@/components/ui";
 import type { Meal } from "@/lib/db/types";
 import { localDate, localHour } from "@/lib/dates";
 import { formatItalianNumber } from "@/lib/goals";
 import { requireExecutionContext } from "@/lib/households/context";
 import { mealTotals, portion, slotForHour, SLOTS } from "@/lib/nutrition";
-import { knownFoods } from "@/services/food";
-import { MAX_MEAL_ITEMS } from "@/services/meals";
+import { listMealItems, MAX_MEAL_ITEMS } from "@/services/meals";
+import { listRecipes } from "@/services/recipes";
 import { getRecord } from "@/services/shared";
 
 export const metadata: Metadata = { title: "Pasto" };
 
-/** A meal = foods with grams; kcal and macros are derived (D25). */
+/**
+ * A meal (D31) = catalog foods with grams, for calories and macros. A recipe can be added: its
+ * weighed ingredients bring their grams, the others start at 0 g and can be corrected.
+ */
 export default async function MealPage({ params }: PageProps<"/stanze/cucina/pasti/[id]">) {
   const { id } = await params;
   const ctx = await requireExecutionContext();
   const meal = await getRecord<Meal>(ctx, "meals", id);
   if (!meal) notFound();
-  const known = await knownFoods(ctx);
+  const [items, recipes] = await Promise.all([listMealItems(ctx, [meal.id]), listRecipes(ctx)]);
   const now = new Date();
   const tz = ctx.household.timezone;
-  const totals = mealTotals(meal.items);
+  const totals = mealTotals(items);
   const isOwner = meal.owner_user_id === ctx.user.id;
 
   return (
     <>
-      <TextLink href="/stanze/cucina/aggiungi?tipo=pasto">← Pasti</TextLink>
+      <TextLink href="/stanze/cucina/dieta#pasti">← Dieta</TextLink>
       <PageHeader title={meal.title} />
 
       <Card className="flex flex-col gap-2 p-4">
         <span className="text-sm text-muted">Totale del pasto</span>
         <MacroLine totals={totals} />
-        {meal.items.some((i) => i.protein_100g == null || i.carbs_100g == null || i.fat_100g == null) ? (
+        {totals.unknown.length ? (
+          <p className="text-xs text-danger">Senza calorie negli alimenti di casa: {totals.unknown.join(", ")}. Il totale non le conta.</p>
+        ) : null}
+        {totals.protein === null || totals.carbs === null || totals.fat === null ? (
           <p className="text-xs text-muted">«—» = manca il dato per almeno un alimento: il totale non viene stimato.</p>
         ) : null}
       </Card>
 
       <Section title="Alimenti">
-        {meal.items.length ? (
+        {items.length ? (
           <Card>
             <ul className="divide-y divide-border">
-              {meal.items.map((item) => {
-                const p = portion(item, item.grams);
+              {items.map((item) => {
+                const kcal = item.food.kcal_100g === null ? null : portion({ ...item.food, kcal_100g: item.food.kcal_100g }, item.grams).kcal;
                 return (
-                  <li key={item.id} className="flex items-center gap-3 py-2 pr-2 pl-4">
-                    <span className="flex flex-1 flex-col">
-                      <span>{item.name}</span>
-                      <span className="text-sm text-muted">
-                        {formatItalianNumber(item.grams)} g · {formatItalianNumber(p.kcal)} kcal
-                      </span>
+                  <li key={item.id} className="flex items-center gap-2 py-2 pr-1 pl-4">
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate">{item.food.name}</span>
+                      <span className="text-xs text-muted">{kcal === null ? "kcal sconosciute" : `${formatItalianNumber(kcal)} kcal`}</span>
                     </span>
-                    <ActionButton action={removeMealItemAction.bind(null, meal.id, meal.version, item.id)} label={`Rimuovi: ${item.name}`} className="size-11 px-0">
+                    <ActionForm action={setMealItemGramsAction.bind(null, item.id)} resetOnSuccess={false} className="flex-row items-center gap-1">
+                      <input
+                        name="grams"
+                        inputMode="decimal"
+                        defaultValue={formatItalianNumber(item.grams, false)}
+                        aria-label={`Grammi di ${item.food.name}`}
+                        className="min-h-10 w-20 rounded-lg border border-border bg-surface px-2 text-right"
+                      />
+                      <span className="text-sm text-muted">g</span>
+                      <SubmitButton variant="ghost" pendingLabel="…" className="min-h-10 px-2">
+                        ✓
+                      </SubmitButton>
+                    </ActionForm>
+                    <ActionButton action={removeMealItemAction.bind(null, item.id)} label={`Rimuovi: ${item.food.name}`} className="size-10 px-0">
                       <span aria-hidden>×</span>
                     </ActionButton>
                   </li>
@@ -64,40 +89,40 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
             </ul>
           </Card>
         ) : (
-          <EmptyState>Aggiungi il primo alimento qui sotto.</EmptyState>
+          <EmptyState>Aggiungi un alimento o una ricetta qui sotto.</EmptyState>
         )}
-        {meal.items.length < MAX_MEAL_ITEMS ? (
-          <details className="rounded-2xl border border-border bg-surface" open={meal.items.length === 0}>
+        {items.length < MAX_MEAL_ITEMS ? (
+          <details className="rounded-2xl border border-border bg-surface" open={items.length === 0}>
             <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium">+ Aggiungi alimento</summary>
             <div className="border-t border-border p-4">
               <ActionForm action={addMealItemAction.bind(null, meal.id)}>
-                <input type="hidden" name="version" value={meal.version} />
-                <input type="hidden" name="barcode" />
-                <FoodLookup targets={{ name: "name", barcode: "barcode" }} known={known} />
-                <div className="grid grid-cols-[1fr_7rem] gap-3">
-                  <Field label="Alimento" name="name" required />
-                  <Field label="Grammi" name="grams" inputMode="decimal" placeholder="100" />
-                </div>
-                <NutritionFields />
+                <FoodPicker />
+                <Field label="Grammi" name="grams" inputMode="decimal" placeholder="100" hint="0 se non conta (spezie, aglio…)" />
                 <SubmitButton>Aggiungi</SubmitButton>
+              </ActionForm>
+            </div>
+          </details>
+        ) : null}
+        {recipes.length ? (
+          <details className="rounded-2xl border border-border bg-surface">
+            <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium">+ Aggiungi una ricetta</summary>
+            <div className="border-t border-border p-4">
+              <ActionForm action={addMealRecipeAction.bind(null, meal.id)} successMessage>
+                <SelectField label="Ricetta" name="recipe_id" options={recipes.map((r) => ({ value: r.id, label: r.title }))} />
+                <SubmitButton variant="secondary">Aggiungi gli ingredienti</SubmitButton>
               </ActionForm>
             </div>
           </details>
         ) : null}
       </Section>
 
-      {meal.items.length ? (
+      {items.length ? (
         <Section title="L'hai mangiato?">
           <Card className="p-4">
             <ActionForm action={addMealEntryAction} successMessage>
               <input type="hidden" name="meal_id" value={meal.id} />
               <div className="grid grid-cols-3 gap-3">
-                <SelectField
-                  label="Pasto"
-                  name="slot"
-                  defaultValue={slotForHour(localHour(now, tz))}
-                  options={SLOTS.map((s) => ({ value: s.id, label: s.label }))}
-                />
+                <SelectField label="Pasto" name="slot" defaultValue={slotForHour(localHour(now, tz))} options={SLOTS.map((s) => ({ value: s.id, label: s.label }))} />
                 <Field label="Giorno" name="eaten_on" type="date" defaultValue={localDate(now, tz)} />
                 <Field label="Porzioni" name="portions" inputMode="decimal" defaultValue="1" />
               </div>

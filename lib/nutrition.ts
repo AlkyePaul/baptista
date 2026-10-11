@@ -10,7 +10,8 @@ export type Per100 = {
   fat_100g?: number | null;
 };
 
-export type MealItem = Per100 & { id: string; name: string; grams: number; barcode?: string | null };
+/** A food with grams, nutrition from the catalog (kcal may be unknown). */
+export type MealLine = { grams: number; food: { name: string; kcal_100g: number | null; protein_100g: number | null; carbs_100g: number | null; fat_100g: number | null } };
 
 export type Totals = { kcal: number; protein: number | null; carbs: number | null; fat: number | null };
 
@@ -35,8 +36,17 @@ export function sumTotals(parts: Totals[]): Totals {
   };
 }
 
-export function mealTotals(items: MealItem[]): Totals {
-  return sumTotals(items.map((item) => portion(item, item.grams)));
+/**
+ * Totals of a meal. Foods at 0 g do not count (garlic in a recipe); a weighed food without kcal in
+ * the catalog is listed in `unknown` so the total is never presented as complete when it is not.
+ */
+export function mealTotals(items: MealLine[]): Totals & { unknown: string[] } {
+  const weighed = items.filter((i) => i.grams > 0);
+  const unknown = weighed.filter((i) => i.food.kcal_100g === null).map((i) => i.food.name);
+  const parts = weighed
+    .filter((i) => i.food.kcal_100g !== null)
+    .map((i) => portion({ ...i.food, kcal_100g: i.food.kcal_100g as number }, i.grams));
+  return { ...sumTotals(parts), unknown };
 }
 
 /** Diary entries store totals directly (snapshot). */

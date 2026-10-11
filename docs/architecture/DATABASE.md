@@ -52,8 +52,8 @@ Fase 01 crea soltanto households, household_members e profiles con fondazioni RL
 | events | event_type, schema_version, source_type/id, actor, audience, payload, occurred_at, idempotency_key | 03 |
 | observations | type, title, description, source_type/id, detector_version, dedupe_key, componenti ranking, priority_score, audience, state, valid_until | 03 |
 | food_items | product_name, brand, barcode, category, quantity, unit, purchased_on/opened_on, explicit_expires_on/estimated_expires_on (la stima richiede estimate_basis), storage, status, closed_at (da trigger), confidence; nutrizione per 100 g kcal/protein/carbs/fat + nutrition_source manual/openfoodfacts | 04 (D25) |
-| notes kind `recipe` | ricetta = checklist ingredienti + body libero; nessuna tabella separata | 04 (D25) |
-| meals | title, notes, items JSONB validato (`valid_meal_items`: name, grams, kcal_100g obbligatori, macro opzionali); totali derivati in `lib/nutrition.ts` | 04 (D25) |
+| notes kind `recipe` | ritirato in D31: le ricette sono in `recipes` (le note esistenti convertite) | 04 → 04.1 |
+| meals | title, notes; righe in `meal_items` (D31, al posto del JSONB); totali derivati in `lib/nutrition.ts` | 04 (D25) |
 | diet_entries | sempre `private` (CHECK); eaten_on, slot breakfast/lunch/dinner/snack, label, grams, kcal, protein_g/carbs_g/fat_g (snapshot), meal_id nullable (on delete set null della sola colonna) | 04 (D25) |
 | profiles.kcal_target | obiettivo calorico personale 800–6000, self-only | 04 (D25) |
 | expense_categories | household_id, name, color, optional parent; unique household/lower(name); bootstrap idempotente `ensure_expense_categories` (invoker, RLS membro) | 04 |
@@ -61,10 +61,12 @@ Fase 01 crea soltanto households, household_members e profiles con fondazioni RL
 | expense_items | expense_id (FK composita cascade), position, raw_description, description, quantity, unit_price, line_total (negativo ammesso: sconti), category_id, confidence; RLS ereditata dalla spesa | 04 |
 | budgets | household, category_id nullable (null = totale), currency, monthly_amount > 0; unico per household/categoria/valuta; condivisi con la casa | 04 (D26) |
 | finance_goals | progetti di spesa: title, currency, target_date, estimate_lines JSONB validato, initial_estimate (fissato all'inserimento, non scrivibile), status active/completed/archived, visibilità | 04 (D26) |
-| watchlist_items | per utente (non per household): symbol in formato TradingView validato, label, position; massimo 30 | 04 (D26) |
+| foods | D31: catalogo alimenti della casa (condiviso tra i membri): name + name_key, brand + brand_key, barcode unico per casa, category, default_storage, nutrizione per 100 g, nutrition_source, staple (null/true/false); `ensure_food` trova per barcode, poi nome+marca, altrimenti crea | 04.1 (D31) |
+| recipes / recipe_ingredients | D31: ricettario; ingredienti = alimento del catalogo + quantità facoltativa (g, kg, ml, l, pz, cucchiaio, cucchiaino, spicchio, pizzico, q.b.), un alimento per ricetta; RLS degli ingredienti dalla ricetta | 04.1 (D31) |
+| meal_items | D31: righe del pasto = alimento del catalogo + grammi (0–5000, 0 ammesso); nutrizione letta dal catalogo; `add_recipe_to_meal` converte pesi e volumi, il resto 0 g | 04.1 (D31) |
 | wardrobe_items | original_path, processed_path, type/subtype, primary_color, attributes JSONB, tags, confidence; `acquisition` unknown/purchased/gift/owned_before + `expense_id` (FK composita, set null della colonna; la spesa collegata deve essere leggibile da chi collega, trigger) | 04 / 04.1 (D30) |
 | shopping_items | Lista della spesa unica per casa, `visibility = 'household'` (CHECK); kind food/other, name + `name_key` generato (`baptista.name_key`: minuscole, accenti italiani, spazi), quantity, unit, dati OFF per il cibo (brand, barcode, category, nutrizione per 100 g), storage obbligatorio per food; status open → stocked (food) / done (other) / removed; `stocked` raggiungibile solo dalla procedura (trigger su `current_user`), food_item_id, stock_batch_id, stocked_at, expense_id | 04.1 (D30) |
-| pantry_staples | prodotti abituali della casa: name + name_key unico per casa, barcode, status staple/declined (il «No» resta), created_by | 04.1 (D30) |
+| pantry_staples | sostituita in D31 da `foods.staple` | ritirata |
 | goals.habit_id | C9: FK composita → habits (set null); progresso = registrazioni dell'abitudine dal giorno di creazione al target_date; un obiettivo condiviso non può seguire un'abitudine privata; progresso manuale rifiutato (`linked_goal`) | 04.1 (D30) |
 | baptista_presentations | memoria di presentazione per spettatore (self-only): key `obs:<dedupe_key>` o `daily:<data>`, observation_id, first/last_shown_at, show_count (al massimo una volta ogni 4 h), last_variant, outcome shown/answered/acted/snoozed/dismissed/failed, snoozed_until, script_step, result_text; scrittura solo via `record_presentation` | 04.1 (D30) |
 | visual_intakes | purpose receipt/wardrobe, uploader, paths, state, proposal JSONB validato/versionato, expires_at, confirmed_entity_id | 04 |

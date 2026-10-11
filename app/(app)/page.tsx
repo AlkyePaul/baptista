@@ -4,7 +4,6 @@ import { BaptistaThread } from "@/components/baptista/thread";
 import { ActionButton } from "@/components/forms";
 import { ProgressRing } from "@/components/progress-ring";
 import { recordColor } from "@/lib/categories";
-import { RoomSwitcher } from "@/components/room-switcher";
 import { Card, EmptyState, Section, TextLink } from "@/components/ui";
 import { addDays, formatLongDay, formatTime, greeting, localDate, localHour } from "@/lib/dates";
 import { requireExecutionContext, type ExecutionContext } from "@/lib/households/context";
@@ -31,8 +30,6 @@ export default async function HomePage() {
           {greeting(localHour(now, tz))}, {ctx.displayName}
         </h1>
       </header>
-
-      <RoomSwitcher selected={room} />
 
       {room === "soggiorno" ? (
         <LivingRoom ctx={ctx} now={now} />

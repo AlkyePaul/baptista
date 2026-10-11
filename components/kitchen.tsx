@@ -1,10 +1,10 @@
 import { setFoodStatusAction } from "@/app/actions/kitchen";
-import { setStapleAction } from "@/app/actions/shopping";
+import { setStapleAction } from "@/app/actions/catalog";
 import { ActionButton, Field, SelectField } from "@/components/forms";
 import { Badge, cx } from "@/components/ui";
 import type { FoodItem } from "@/lib/db/types";
 import { relativeDay } from "@/lib/dates";
-import { effectiveExpiry, expiryState, FOOD_CATEGORIES, STORAGES, UNITS, type ExpiryState } from "@/lib/food";
+import { effectiveExpiry, expiryState, STORAGES, UNITS, type ExpiryState } from "@/lib/food";
 import { formatItalianNumber } from "@/lib/goals";
 import type { Totals } from "@/lib/nutrition";
 
@@ -26,24 +26,22 @@ export function NutritionFields({ defaults }: { defaults?: Partial<Pick<FoodItem
   );
 }
 
-/** Inventory fields shared by the add and edit forms. */
-export function FoodFields({ item, today }: { item?: FoodItem; today: string }) {
+/** What belongs to this package (D31): the food itself comes from the catalog. */
+export function PantryItemFields({ item, today, defaultStorage }: { item?: FoodItem; today: string; defaultStorage?: string }) {
   const expiry = item ? effectiveExpiry(item) : null;
   return (
     <>
-      <Field label="Alimento" name="product_name" placeholder="Es. Latte intero" defaultValue={item?.product_name} required />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Marca" name="brand" defaultValue={item?.brand} hint="Facoltativa" />
-        <Field label="Codice a barre" name="barcode" inputMode="numeric" defaultValue={item?.barcode} hint="Facoltativo" />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <SelectField label="Dove" name="storage" defaultValue={item?.storage ?? "fridge"} options={STORAGES.map((s) => ({ value: s.id, label: s.label }))} />
-        <SelectField label="Categoria" name="category" defaultValue={item?.category ?? "other"} options={FOOD_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))} />
-      </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Quantità" name="quantity" inputMode="decimal" defaultValue={item ? fmt(item.quantity) : "1"} />
         <SelectField label="Unità" name="unit" defaultValue={item?.unit ?? "pz"} options={UNITS.map((u) => ({ value: u.id, label: u.label }))} />
       </div>
+      <SelectField
+        key={defaultStorage}
+        label="Dove"
+        name="storage"
+        defaultValue={item?.storage ?? defaultStorage ?? "fridge"}
+        options={STORAGES.map((s) => ({ value: s.id, label: s.label }))}
+      />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Scadenza" name="expires_on" type="date" defaultValue={expiry?.date} />
         <Field label="Acquistato il" name="purchased_on" type="date" defaultValue={item ? item.purchased_on : today} />
@@ -52,7 +50,6 @@ export function FoodFields({ item, today }: { item?: FoodItem; today: string }) 
         <input type="checkbox" name="expiry_estimated" defaultChecked={expiry?.estimated ?? false} className="size-5 accent-[var(--accent)]" />
         <span>La scadenza è una mia stima (non è scritta sulla confezione)</span>
       </label>
-      <NutritionFields defaults={item} />
     </>
   );
 }
@@ -89,7 +86,7 @@ export function FoodQuickActions({ item, starred }: { item: FoodItem; starred?: 
           ★ Abituale
         </span>
       ) : (
-        <ActionButton action={setStapleAction.bind(null, item.product_name, item.barcode, true)} label={`Segna come abituale: ${item.product_name}`} className="min-h-10 px-2 text-xs">
+        <ActionButton action={setStapleAction.bind(null, item.food_id, true)} label={`Segna come abituale: ${item.product_name}`} className="min-h-10 px-2 text-xs">
           ☆ Abituale
         </ActionButton>
       )}

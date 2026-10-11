@@ -7,10 +7,10 @@ import { cx } from "@/components/ui";
 import { orderedRooms, type RoomId } from "@/lib/rooms";
 
 /**
- * Four room tiles in a row. The selected room is emphasised and always moves to the top-left
- * position; the reorder is animated (FLIP) and the choice is saved as a cookie preference.
+ * Four room tiles in a row (inside the header panel of RoomPill). The selected room is emphasised
+ * and always moves to the left; the reorder is animated (FLIP) and saved as a cookie preference.
  */
-export function RoomSwitcher({ selected }: { selected: RoomId }) {
+export function RoomSwitcher({ selected, onChoose }: { selected: RoomId; onChoose?: (room: RoomId) => void }) {
   const [current, setCurrent] = useState(selected);
   const [, startTransition] = useTransition();
   const tiles = useRef(new Map<RoomId, HTMLElement>());
@@ -45,7 +45,8 @@ export function RoomSwitcher({ selected }: { selected: RoomId }) {
     if (room === current) return;
     for (const [id, el] of tiles.current) before.current.set(id, el.getBoundingClientRect());
     setCurrent(room);
-    startTransition(() => selectRoomAction(room));
+    if (onChoose) onChoose(room);
+    else startTransition(() => selectRoomAction(room));
   }
 
   return (

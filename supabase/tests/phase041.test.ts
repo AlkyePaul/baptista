@@ -37,11 +37,18 @@ async function observations(user: User, type: string, household = h1) {
   );
 }
 
+/** A catalog food of H1 (found by barcode, else by name, else created). */
+async function food(user: User, name: string, barcode: string | null = null) {
+  const row = await one<{ id: string }>(user, "select baptista.ensure_food($1, $2, null, $3) as id", [h1, name, barcode]);
+  return row.id;
+}
+
 async function addItem(user: User, kind: "food" | "other", name: string, extra: { barcode?: string; quantity?: number; unit?: string; storage?: string } = {}) {
+  const foodId = kind === "food" ? await food(user, name, extra.barcode ?? null) : null;
   const row = await one<{ id: string }>(
     user,
-    "select baptista.add_shopping_item($1, $2, $3, $4, $5, $6, null, null, $7) as id",
-    [h1, kind, name, extra.quantity ?? null, extra.unit ?? null, extra.barcode ?? null, extra.storage ?? null],
+    "select baptista.add_shopping_item($1, $2, $3, $4, $5, $6, $7) as id",
+    [h1, kind, kind === "food" ? null : name, extra.quantity ?? null, extra.unit ?? null, foodId, extra.storage ?? null],
   );
   return row.id;
 }
@@ -79,10 +86,11 @@ describe("A-1 lista della spesa", () => {
       /permission denied/,
     );
     await rejects(as(db, carla, (q) => q("select baptista.add_shopping_item($1, 'other', 'x')", [h1])), /row-level security/);
-    // «Altro» never carries food data; food always has a place.
+    // «Altro» never points at a catalog food; a food row always does.
+    const milkFood = await food(anna, "Latte");
     await rejects(
-      as(db, anna, (q) => q("insert into baptista.shopping_items (household_id, kind, name, barcode) values ($1, 'other', 'x', '12345678')", [h1])),
-      /check constraint/,
+      as(db, anna, (q) => q("insert into baptista.shopping_items (household_id, kind, name, food_id) values ($1, 'other', 'x', $2)", [h1, milkFood])),
+      /invalid/,
     );
   });
 
@@ -98,7 +106,7 @@ describe("A-1 lista della spesa", () => {
     assert.equal(Number(row.quantity), 12);
     assert.equal(row.n, 1);
     const byCode = await addItem(anna, "food", "Biscotti", { barcode: "8000500310427" });
-    assert.equal(await addItem(anna, "food", "Biscotti al cacao", { barcode: "8000500310427" }), byCode);
+    assert.equal(await addItem(anna, "food", "Biscotti al cacao", { barcode: "8000500310427" }), byCode, "same barcode = same catalog food");
   });
 
   test("ticking a food stocks it once (idempotent), creates the pantry item and an event with bulk=false", async () => {
@@ -193,8 +201,9 @@ describe("A-3 connection questions", () => {
   });
 
   test("C2: a finished food asks to restock (actor only); adding it to the list resolves the question", async () => {
-    const food = await one<{ id: string }>(anna, "insert into baptista.food_items (household_id, product_name, barcode) values ($1, 'Burro', '8001234567890') returning id", [h1]);
-    await as(db, bruno, (q) => q("update baptista.food_items set status = 'consumed' where id = $1", [food.id]));
+    const butter = await food(anna, "Burro", "8001234567890");
+    const item = await one<{ id: string }>(anna, "insert into baptista.food_items (household_id, food_id) values ($1, $2) returning id", [h1, butter]);
+    await as(db, bruno, (q) => q("update baptista.food_items set status = 'consumed' where id = $1", [item.id]));
     await refresh();
     assert.equal((await observations(bruno, "restock_question")).length, 1);
     assert.equal((await observations(anna, "restock_question")).length, 0);
@@ -213,12 +222,14 @@ describe("A-3 connection questions", () => {
     assert.deepEqual(asks.map((o) => o.source_id), [food.id]);
   });
 
-  test("«already in the pantry» matches by barcode or name key and disappears after consumption", async () => {
-    const food = await one<{ id: string }>(anna, "insert into baptista.food_items (household_id, product_name) values ($1, 'Caffè') returning id", [h1]);
-    const check = (key: string) => one<{ yes: boolean }>("admin", "select baptista.in_pantry($1, $2, null) as yes", [h1, key]);
-    assert.equal((await check("caffe")).yes, true, "accents folded");
-    await as(db, anna, (q) => q("update baptista.food_items set status = 'consumed' where id = $1", [food.id]));
-    assert.equal((await check("caffe")).yes, false);
+  test("«already in the pantry» follows the catalog food and disappears after consumption", async () => {
+    const coffee = await food(anna, "Caffè");
+    assert.equal(await food(bruno, "  caffe "), coffee, "accents and spaces folded: one catalog food");
+    const item = await one<{ id: string }>(anna, "insert into baptista.food_items (household_id, food_id) values ($1, $2) returning id", [h1, coffee]);
+    const check = () => one<{ yes: boolean }>("admin", "select baptista.food_in_pantry($1) as yes", [coffee]);
+    assert.equal((await check()).yes, true);
+    await as(db, anna, (q) => q("update baptista.food_items set status = 'consumed' where id = $1", [item.id]));
+    assert.equal((await check()).yes, false);
   });
 
   test("C8: staple suggested after 3 stockings in 60 days, never after «No»; missing staples grouped", async () => {
@@ -226,20 +237,18 @@ describe("A-3 connection questions", () => {
       const id = await addItem(anna, "food", "Latte intero", { storage: "fridge" });
       await stock(anna, [id], false);
     }
-    const yogurtIds: string[] = [];
     for (let i = 0; i < 3; i += 1) {
       const id = await addItem(anna, "food", "Kefir", { storage: "fridge" });
-      yogurtIds.push(id);
       await stock(anna, [id], false);
     }
+    const milkFood = await food(anna, "Latte intero");
+    const yogurtFood = await food(anna, "Kefir");
     await refresh();
     const suggestions = await observations(bruno, "staple_suggestion");
     assert.deepEqual(new Set(suggestions.map((s) => s.data.name)), new Set(["Latte intero", "Kefir"]));
-    await as(db, bruno, (q) => q("select baptista.set_pantry_staple($1, 'Kefir', null, 'declined')", [h1]));
-    await as(db, anna, (q) => q("select baptista.set_pantry_staple($1, 'Latte intero', null, 'staple')", [h1]));
-    await as(db, anna, (q) => q("select baptista.set_pantry_staple($1, 'latte  intero', null, 'staple')", [h1]));
-    assert.equal((await one<{ n: number }>(anna, "select count(*)::int as n from baptista.pantry_staples where household_id = $1", [h1])).n, 2, "one row per product");
-    await rejects(as(db, carla, (q) => q("select baptista.set_pantry_staple($1, 'x', null, 'staple')", [h1])), /row-level security/);
+    await as(db, bruno, (q) => q("update baptista.foods set staple = false where id = $1", [yogurtFood]));
+    await as(db, anna, (q) => q("update baptista.foods set staple = true where id = $1", [milkFood]));
+    assert.equal((await as(db, carla, (q) => q("update baptista.foods set staple = true where id = $1 returning id", [milkFood]))).length, 0, "strangers cannot touch the catalog");
     await refresh();
     assert.equal((await observations(bruno, "staple_suggestion")).length, 0, "answered either way, never asked again");
 

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { signOut } from "@/app/actions/auth";
 import {
+  cancelInvitationAction,
+  claimInvitationAction,
   inviteMemberAction,
   removeMemberAction,
   respondToInviteAction,
@@ -12,16 +14,19 @@ import {
 import { ActionButton, ActionForm, Field, SubmitButton } from "@/components/forms";
 import { Avatar, Badge, buttonClass, Card, PageHeader, Section, TextLink } from "@/components/ui";
 import { requireExecutionContext } from "@/lib/households/context";
-import { getDirectory } from "@/services/households";
+import { getDirectory, listInvitations } from "@/services/households";
+
+const dateFormat = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long" });
 
 export const metadata: Metadata = { title: "Casa" };
 
 export default async function HouseholdPage() {
   const ctx = await requireExecutionContext();
   const isOwner = ctx.role === "owner";
-  const directory = await getDirectory(ctx);
+  const [directory, emailInvites] = await Promise.all([getDirectory(ctx), listInvitations(ctx)]);
   const active = directory.filter((m) => m.state === "active");
   const invited = directory.filter((m) => m.state === "pending");
+  const alone = active.length === 1;
 
   return (
     <>
@@ -95,7 +100,13 @@ export default async function HouseholdPage() {
             })}
           </ul>
         </Card>
-        {invited.length ? (
+        {isOwner && active.length > 1 ? (
+          <p className="px-1 text-sm text-muted">
+            Chi viene rimosso o esce perde subito l&apos;accesso. I suoi elementi privati vengono eliminati dopo 30 giorni,
+            a meno che non rientri prima; quelli condivisi restano alla casa.
+          </p>
+        ) : null}
+        {invited.length || emailInvites.length ? (
           <Card>
             <ul className="divide-y divide-border">
               {invited.map((m) => (
@@ -110,6 +121,27 @@ export default async function HouseholdPage() {
                   ) : null}
                 </li>
               ))}
+              {emailInvites.map((invite) => (
+                <li key={invite.email} className="flex items-center gap-3 px-4 py-3">
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate">{invite.email}</span>
+                    <span className="text-sm text-muted">
+                      {invite.locked
+                        ? "Bloccato dopo troppi tentativi: invita di nuovo per un nuovo codice"
+                        : new Date(invite.expires_at) < new Date()
+                          ? "Scaduto: invita di nuovo per un nuovo codice"
+                          : `Codice valido fino al ${dateFormat.format(new Date(invite.expires_at))}`}
+                    </span>
+                  </span>
+                  <ActionButton
+                    action={cancelInvitationAction.bind(null, invite.email)}
+                    variant="danger"
+                    label={`Annulla invito a ${invite.email}`}
+                  >
+                    Annulla
+                  </ActionButton>
+                </li>
+              ))}
             </ul>
           </Card>
         ) : null}
@@ -121,7 +153,7 @@ export default async function HouseholdPage() {
                 name="email"
                 type="email"
                 inputMode="email"
-                hint="La persona deve avere già un account Baptista. Diventerà membro solo dopo aver accettato."
+                hint="Se la persona non usa ancora Baptista riceverai un codice da mandarle: le servirà per entrare. Invitando di nuovo la stessa email ottieni un codice nuovo."
               />
               <SubmitButton variant="secondary">Invita</SubmitButton>
             </ActionForm>
@@ -149,6 +181,17 @@ export default async function HouseholdPage() {
         </Section>
       ) : null}
 
+      <Section title="Hai un codice invito?">
+        <Card className="p-4">
+          <ActionForm action={claimInvitationAction}>
+            <Field label="Codice invito" name="code" autoComplete="one-time-code" placeholder="ABCD-EFGH" required />
+            <SubmitButton variant="secondary" pendingLabel="Verifica…">
+              Entra nella casa
+            </SubmitButton>
+          </ActionForm>
+        </Card>
+      </Section>
+
       {isOwner ? (
         <Section title="Impostazioni della casa">
           <Card className="p-4">
@@ -172,13 +215,18 @@ export default async function HouseholdPage() {
         <TextLink href="/benvenuto?nuova=1">Crea un&apos;altra casa</TextLink>
       </Section>
 
+      {alone ? (
+        <p className="text-sm text-muted">
+          Sei l&apos;unico membro: se esci, la casa e tutti i suoi dati vengono eliminati definitivamente.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <ActionButton
           action={removeMemberAction.bind(null, ctx.user.id)}
           variant="danger"
-          confirmLabel="Confermi di voler uscire?"
+          confirmLabel={alone ? "Eliminare casa e dati?" : "Confermi di voler uscire?"}
         >
-          Esci da questa casa
+          {alone ? "Esci ed elimina la casa" : "Esci da questa casa"}
         </ActionButton>
         <form action={signOut}>
           <button type="submit" className={buttonClass.secondary}>

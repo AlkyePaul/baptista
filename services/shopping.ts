@@ -1,42 +1,33 @@
 import "server-only";
 
 import { z } from "zod";
-import type { FoodItem, PantryStaple, ShoppingItem } from "@/lib/db/types";
+import type { FoodItem, ShoppingItem } from "@/lib/db/types";
 import { DomainError, throwIfDbError } from "@/lib/errors";
-import { effectiveExpiry, FOOD_CATEGORIES, label, STORAGES, UNITS } from "@/lib/food";
+import { effectiveExpiry, label, STORAGES, UNITS } from "@/lib/food";
 import { formatItalianNumber } from "@/lib/goals";
 import type { ExecutionContext } from "@/lib/households/context";
+import { listStapleIds } from "@/services/catalog";
 import { visibilitySchema } from "@/lib/households/permissions";
-import { pantryMatch, storageFor } from "@/lib/shopping";
-import { nutritionFields } from "@/services/food";
 import { civilDate, decimal, optionalDecimal, optionalText, requiredText, updateVersioned } from "@/services/shared";
 
 /** Lista della spesa (Phase 04.1, A-1): one shared list per household, Alimenti → Dispensa and Altro. */
 
 const ids = <T extends readonly { id: string }[]>(list: T) => list.map((x) => x.id) as [T[number]["id"], ...T[number]["id"][]];
 
-export const addShoppingSchema = z
-  .object({
-    kind: z.enum(["food", "other"]),
-    name: requiredText(120, "Scrivi cosa comprare."),
+/** A food row is a catalog food (D31); an «Altro» row is free text. */
+export const addShoppingSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("food"),
+    food_id: z.uuid({ error: "Scegli un alimento." }),
     quantity: optionalDecimal("Quantità", { max: 999_999, decimals: 3, exclusiveMin: true }),
     unit: z.enum(ids(UNITS)).optional().transform((v) => v ?? null),
-    brand: optionalText(80),
-    barcode: z
-      .string()
-      .trim()
-      .regex(/^[0-9]{6,14}$/, "Codice a barre non valido (solo cifre).")
-      .optional()
-      .transform((v) => v ?? null),
-    category: z.enum(ids(FOOD_CATEGORIES)).optional().transform((v) => v ?? null),
     storage: z.enum(ids(STORAGES)).optional().transform((v) => v ?? null),
-    ...nutritionFields,
-  })
-  .transform((v) =>
-    v.kind === "other"
-      ? { ...v, brand: null, barcode: null, category: null, storage: null, kcal_100g: null, protein_100g: null, carbs_100g: null, fat_100g: null }
-      : { ...v, storage: v.storage ?? storageFor(v.category) },
-  );
+  }),
+  z.object({
+    kind: z.literal("other"),
+    name: requiredText(120, "Scrivi cosa comprare."),
+  }),
+]);
 
 export type AddShoppingInput = z.infer<typeof addShoppingSchema>;
 
@@ -54,42 +45,20 @@ export async function listShopping(ctx: ExecutionContext): Promise<ShoppingItem[
 }
 
 export async function addShoppingItem(ctx: ExecutionContext, input: AddShoppingInput): Promise<string> {
-  const { data, error } = await ctx.supabase.rpc("add_shopping_item", {
-    p_household_id: ctx.household.id,
-    p_kind: input.kind,
-    p_name: input.name,
-    p_quantity: input.quantity,
-    p_unit: input.unit,
-    p_barcode: input.barcode,
-    p_brand: input.brand,
-    p_category: input.category,
-    p_storage: input.storage,
-    p_kcal: input.kcal_100g,
-    p_protein: input.protein_100g,
-    p_carbs: input.carbs_100g,
-    p_fat: input.fat_100g,
-  });
+  const { data, error } = await ctx.supabase.rpc(
+    "add_shopping_item",
+    input.kind === "food"
+      ? { p_household_id: ctx.household.id, p_kind: "food", p_food_id: input.food_id, p_quantity: input.quantity, p_unit: input.unit, p_storage: input.storage }
+      : { p_household_id: ctx.household.id, p_kind: "other", p_name: input.name },
+  );
   throwIfDbError(error);
   return data as string;
 }
 
-/** Many foods at once (recipe ingredients C3, missing staples C8); duplicates merge in the DB. */
-export async function addFoods(ctx: ExecutionContext, foods: Array<{ name: string; barcode?: string | null }>) {
-  for (const food of foods.slice(0, 100)) {
-    await addShoppingItem(ctx, {
-      kind: "food",
-      name: food.name.slice(0, 120),
-      quantity: null,
-      unit: null,
-      brand: null,
-      barcode: food.barcode ?? null,
-      category: null,
-      storage: "pantry",
-      kcal_100g: null,
-      protein_100g: null,
-      carbs_100g: null,
-      fat_100g: null,
-    });
+/** Many catalog foods at once (recipe ingredients C3, missing staples C8); duplicates merge in the DB. */
+export async function addFoods(ctx: ExecutionContext, foodIds: string[]) {
+  for (const foodId of [...new Set(foodIds)].slice(0, 100)) {
+    await addShoppingItem(ctx, { kind: "food", food_id: foodId, quantity: null, unit: null, storage: null });
   }
 }
 
@@ -154,30 +123,6 @@ export async function setItemStorage(ctx: ExecutionContext, id: string, version:
   if (!data?.length) throw new DomainError("conflict");
 }
 
-// Staples (C8) ---------------------------------------------------------------------------------
-
-export async function listStaples(ctx: ExecutionContext): Promise<PantryStaple[]> {
-  const { data, error } = await ctx.supabase.from("pantry_staples").select("id, name, name_key, barcode, status").eq("household_id", ctx.household.id).order("name");
-  throwIfDbError(error);
-  return (data ?? []) as PantryStaple[];
-}
-
-/** Star or «No, non chiederlo più»: one row per product name, the latest answer wins. */
-export async function setStaple(ctx: ExecutionContext, name: string, barcode: string | null, status: "staple" | "declined") {
-  const { error } = await ctx.supabase.rpc("set_pantry_staple", {
-    p_household_id: ctx.household.id,
-    p_name: name.trim().slice(0, 120),
-    p_barcode: barcode,
-    p_status: status,
-  });
-  throwIfDbError(error);
-}
-
-export async function removeStaple(ctx: ExecutionContext, id: string) {
-  const { error } = await ctx.supabase.from("pantry_staples").delete().eq("id", id).eq("household_id", ctx.household.id);
-  throwIfDbError(error);
-}
-
 // C1: the shopping as an expense --------------------------------------------------------------
 
 export const shoppingExpenseSchema = z.object({
@@ -221,13 +166,12 @@ export type ShoppingView = { items: ShoppingItem[]; inPantry: Record<string, str
 
 const shortDate = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 
-/** Open rows plus, for food rows, what is already in the house (computed on read, never stored). */
+/** Open rows plus, for food rows, what of that catalog food is already in the house (computed on read). */
 export async function shoppingView(ctx: ExecutionContext, pantry: FoodItem[]): Promise<ShoppingView> {
-  const [items, staples] = await Promise.all([listShopping(ctx), listStaples(ctx)]);
+  const [items, staples] = await Promise.all([listShopping(ctx), listStapleIds(ctx)]);
   const inPantry: Record<string, string> = {};
   for (const item of items) {
-    if (item.kind !== "food") continue;
-    const match = pantryMatch(item, pantry);
+    const match = item.food_id ? pantry.find((f) => f.food_id === item.food_id) : undefined;
     if (!match) continue;
     const expiry = effectiveExpiry(match);
     inPantry[item.id] = [
@@ -238,5 +182,5 @@ export async function shoppingView(ctx: ExecutionContext, pantry: FoodItem[]): P
       .filter(Boolean)
       .join(" · ");
   }
-  return { items, inPantry, staples: staples.filter((s) => s.status === "staple").map((s) => s.name_key) };
+  return { items, inPantry, staples };
 }

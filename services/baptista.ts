@@ -14,6 +14,7 @@ import { visualFor } from "@/lib/intelligence/briefing";
 import { formatMoney } from "@/lib/money";
 import { SLOTS } from "@/lib/nutrition";
 import type { RoomId } from "@/lib/rooms";
+import * as catalog from "@/services/catalog";
 import * as diet from "@/services/diet";
 import { refreshObservations } from "@/services/intelligence";
 import { decimal, getRecord, parseForm, updateVersioned } from "@/services/shared";
@@ -289,8 +290,8 @@ const dietSchema = z.object({
 
 async function execute(ctx: ExecutionContext, o: Row, option: string, version: number | null, payload: Payload, now: Date): Promise<Executed> {
   const today = localDate(now, ctx.household.timezone);
-  const name = typeof o.data.name === "string" ? o.data.name : "";
-  const barcode = typeof o.data.barcode === "string" ? o.data.barcode : null;
+  /** Catalog food the observation is about (C2, C8), from the detector data. */
+  const catalogFood = typeof o.data.food_id === "string" ? o.data.food_id : null;
   switch (`${o.type}:${option}`) {
     case "food_expiry:eaten":
     case "old_food:eaten":
@@ -321,22 +322,14 @@ async function execute(ctx: ExecutionContext, o: Row, option: string, version: n
       return { text: DONE_TEXT["habit:today"], snoozeUntil: morning(ctx, now) };
     }
     case "restock_question:add":
-      await shopping.addFoods(ctx, [{ name, barcode }]);
+      if (!catalogFood) throw new DomainError("not_found");
+      await shopping.addFoods(ctx, [catalogFood]);
       return { text: DONE_TEXT["restock:add"] };
     case "diet_log_question:log": {
       const input = parsePayload(dietSchema, payload);
       const food = await requireSource<FoodItem>(ctx, "food_items", o.source_id, null);
       if (food.kcal_100g === null) throw new DomainError("invalid");
-      await diet.addFoodEntry(ctx, {
-        eaten_on: today,
-        slot: input.slot,
-        label: food.product_name,
-        grams: input.grams,
-        kcal_100g: Number(food.kcal_100g),
-        protein_100g: food.protein_100g === null ? null : Number(food.protein_100g),
-        carbs_100g: food.carbs_100g === null ? null : Number(food.carbs_100g),
-        fat_100g: food.fat_100g === null ? null : Number(food.fat_100g),
-      });
+      await diet.addFoodEntry(ctx, { eaten_on: today, slot: input.slot, food_id: food.food_id, grams: input.grams });
       const kcal = Math.round((Number(food.kcal_100g) * input.grams) / 100);
       return { text: `Aggiunto al diario: ${kcal} kcal.` };
     }
@@ -347,13 +340,14 @@ async function execute(ctx: ExecutionContext, o: Row, option: string, version: n
     }
     case "staple_suggestion:yes":
     case "staple_suggestion:never":
-      await shopping.setStaple(ctx, name, barcode, option === "yes" ? "staple" : "declined");
+      if (!catalogFood) throw new DomainError("not_found");
+      await catalog.setStaple(ctx, catalogFood, option === "yes");
       return { text: DONE_TEXT[`staple:${option}`] };
     case "staples_missing:add": {
       const chosen = new Set(Array.isArray(payload.item) ? payload.item : payload.item ? [payload.item] : []);
-      const items = (Array.isArray(o.data.items) ? (o.data.items as Array<{ id: string; name: string; barcode: string | null }>) : []).filter((i) => chosen.has(i.id));
+      const items = (Array.isArray(o.data.items) ? (o.data.items as Array<{ id: string; name: string }>) : []).filter((i) => chosen.has(i.id));
       if (!items.length) throw new DomainError("invalid", "Spunta almeno un prodotto.");
-      await shopping.addFoods(ctx, items.map((i) => ({ name: i.name, barcode: i.barcode })));
+      await shopping.addFoods(ctx, items.map((i) => i.id));
       return { text: DONE_TEXT["staples:add"] };
     }
     case "wardrobe_acquisition:bought": {

@@ -27,18 +27,17 @@ test("explicit expiry wins over the estimate; states mirror the SQL detector win
 
 test("portions and meal totals; unknown macros stay unknown", () => {
   assert.deepEqual(portion({ kcal_100g: 360, protein_100g: 12, carbs_100g: 72, fat_100g: 1.5 }, 80), { kcal: 288, protein: 9.6, carbs: 57.6, fat: 1.2 });
-  const total = mealTotals([
-    { id: "1", name: "Pasta", grams: 80, kcal_100g: 360, protein_100g: 12, carbs_100g: 72, fat_100g: 1.5 },
-    { id: "2", name: "Olio", grams: 10, kcal_100g: 884, protein_100g: 0, carbs_100g: 0, fat_100g: 100 },
-  ]);
-  assert.deepEqual(total, { kcal: 376, protein: 9.6, carbs: 57.6, fat: 11.2 });
-  const partial = mealTotals([
-    { id: "1", name: "Pasta", grams: 100, kcal_100g: 360, protein_100g: 12 },
-    { id: "2", name: "Sugo", grams: 100, kcal_100g: 50, protein_100g: null },
-  ]);
+  const line = (name: string, grams: number, kcal: number | null, protein: number | null = null, carbs: number | null = null, fat: number | null = null) => ({
+    grams,
+    food: { name, kcal_100g: kcal, protein_100g: protein, carbs_100g: carbs, fat_100g: fat },
+  });
+  const total = mealTotals([line("Pasta", 80, 360, 12, 72, 1.5), line("Olio", 10, 884, 0, 0, 100), line("Aglio", 0, null)]);
+  assert.deepEqual(total, { kcal: 376, protein: 9.6, carbs: 57.6, fat: 11.2, unknown: [] }, "0 g (garlic) does not count");
+  const partial = mealTotals([line("Pasta", 100, 360, 12), line("Sugo", 100, 50, null)]);
   assert.equal(partial.kcal, 410);
   assert.equal(partial.protein, null, "one unknown makes the sum unknown, not smaller");
-  assert.deepEqual(mealTotals([]), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+  assert.deepEqual(mealTotals([line("Pesto della nonna", 30, null)]).unknown, ["Pesto della nonna"], "weighed food without kcal is reported");
+  assert.deepEqual(mealTotals([]), { kcal: 0, protein: 0, carbs: 0, fat: 0, unknown: [] });
 });
 
 test("diary totals and daily target", () => {

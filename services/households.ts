@@ -4,6 +4,7 @@ import { z } from "zod";
 import { throwIfDbError } from "@/lib/errors";
 import type { ExecutionContext, UserContext } from "@/lib/households/context";
 import type { DirectoryEntry } from "@/lib/db/types";
+import { BAPTISTA_BUCKETS } from "@/lib/supabase/schema";
 import { requiredText, versionField } from "@/services/shared";
 
 const timezoneSchema = z
@@ -29,6 +30,16 @@ export const inviteSchema = z.object({
   email: z.email("Inserisci un indirizzo email valido.").trim(),
 });
 
+export const inviteCodeSchema = z.object({
+  code: z
+    .string({ error: "Inserisci il codice invito." })
+    .trim()
+    .transform((code) => code.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+    .refine((code) => code.length === 8, "Il codice invito ha 8 caratteri."),
+});
+
+export type Invitation = { email: string; expires_at: string; locked: boolean };
+
 export const profileSchema = z.object({
   display_name: requiredText(60, "Inserisci il nome da mostrare."),
 });
@@ -49,9 +60,46 @@ export async function updateHousehold(ctx: ExecutionContext, input: z.infer<type
   throwIfDbError(error);
 }
 
-export async function inviteMember(ctx: ExecutionContext, email: string) {
-  const { error } = await ctx.supabase.rpc("invite_member", { p_household_id: ctx.household.id, p_email: email });
+/** Returns the one-time code to share, or null when the person already uses Baptista. */
+export async function inviteMember(ctx: ExecutionContext, email: string): Promise<string | null> {
+  const { data, error } = await ctx.supabase.rpc("invite_member", { p_household_id: ctx.household.id, p_email: email });
   throwIfDbError(error);
+  return (data as string | null) ?? null;
+}
+
+/** Redeems an invite code for the signed-in address; returns the household id, or null if invalid. */
+export async function claimInvitation(ctx: Pick<UserContext, "supabase">, code: string, displayName: string) {
+  const { data, error } = await ctx.supabase.rpc("claim_invitation", { p_code: code, p_display_name: displayName });
+  throwIfDbError(error);
+  return (data as string | null) ?? null;
+}
+
+export async function listInvitations(ctx: ExecutionContext): Promise<Invitation[]> {
+  if (ctx.role !== "owner") return [];
+  const { data, error } = await ctx.supabase.rpc("list_invitations", { p_household_id: ctx.household.id });
+  throwIfDbError(error);
+  return (data ?? []) as Invitation[];
+}
+
+export async function cancelInvitation(ctx: ExecutionContext, email: string) {
+  const { error } = await ctx.supabase.rpc("cancel_invitation", { p_household_id: ctx.household.id, p_email: email });
+  throwIfDbError(error);
+}
+
+/**
+ * Lazy 30-day cleanup of private data left by former members (throttled to once a day in the
+ * database). The rows go first; the orphaned wardrobe photos are then removed from storage.
+ */
+export async function purgeDepartedData(ctx: ExecutionContext) {
+  const { data, error } = await ctx.supabase.rpc("purge_departed_data", { p_household_id: ctx.household.id });
+  if (error) {
+    console.error("[baptista] purge failed", error.code ?? "no-code");
+    return;
+  }
+  const paths = [...new Set((data ?? []) as string[])];
+  if (!paths.length) return;
+  const { error: storageError } = await ctx.supabase.storage.from(BAPTISTA_BUCKETS.wardrobe).remove(paths);
+  if (storageError) console.error("[baptista] purge storage cleanup failed");
 }
 
 export async function respondToInvite(ctx: UserContext, householdId: string, accept: boolean) {

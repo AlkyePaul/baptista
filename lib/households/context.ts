@@ -28,7 +28,7 @@ export type ExecutionContext = UserContext & {
   role: MemberRole;
 };
 
-function defaultDisplayName(email: string | null) {
+export function defaultDisplayName(email: string | null) {
   const local = email?.split("@")[0]?.replace(/[._-]+/g, " ").trim();
   if (!local) return "Io";
   return local.charAt(0).toUpperCase() + local.slice(1, 60);
@@ -38,18 +38,10 @@ export const getUserContext = cache(async (): Promise<UserContext> => {
   const user = await requireUser();
   const supabase = await createClient();
 
-  // Idempotent Baptista profile provisioning (never copies GuideApp data or edits auth.users).
-  let { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!profile) {
-    await supabase
-      .from("profiles")
-      .upsert({ user_id: user.id, display_name: defaultDisplayName(user.email) }, { onConflict: "user_id", ignoreDuplicates: true });
-    ({ data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle());
-  }
+  // Baptista is invite-only: a profile exists only after an invite code was redeemed (/invito).
+  // A shared-Auth session (e.g. a GuideApp account) alone grants nothing.
+  const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle();
+  if (!profile) redirect("/invito");
 
   const { data: rows } = await supabase
     .from("household_members")
@@ -62,7 +54,7 @@ export const getUserContext = cache(async (): Promise<UserContext> => {
   return {
     user,
     supabase,
-    displayName: profile?.display_name ?? defaultDisplayName(user.email),
+    displayName: profile.display_name,
     memberships: all.filter((m) => m.state === "active"),
     pendingInvites: all.filter((m) => m.state === "pending"),
   };

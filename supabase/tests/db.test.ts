@@ -102,10 +102,11 @@ describe("phase 01 — households and membership", () => {
     await rejects(as(db, owner, (q) => q("update baptista.households set name = 'x' where id = $1", [h1])), /permission denied/);
   });
 
-  test("only owners invite; unknown or profile-less users get the same neutral error", async () => {
+  test("only owners invite; self and current members are refused", async () => {
     await rejects(as(db, member, (q) => q("select baptista.invite_member($1, $2)", [h1, stranger.email])), /forbidden/);
-    await rejects(as(db, owner, (q) => q("select baptista.invite_member($1, 'nobody@test.local')", [h1])), /invite_unavailable/);
-    await rejects(as(db, owner, (q) => q("select baptista.invite_member($1, $2)", [h1, noProfile.email])), /invite_unavailable/);
+    await rejects(as(db, owner, (q) => q("select baptista.invite_member($1, $2)", [h1, owner.email])), /invite_unavailable/);
+    await rejects(as(db, owner, (q) => q("select baptista.invite_member($1, $2)", [h1, member.email])), /invite_unavailable/);
+    await rejects(as(db, owner, (q) => q("select baptista.invite_member($1, 'non-una-email')", [h1])), /invalid/);
   });
 
   test("profiles are self-only; the directory exposes only name and avatar to members", async () => {
@@ -128,11 +129,9 @@ describe("phase 01 — households and membership", () => {
     );
   });
 
-  test("the last owner cannot leave; transfer then leave works", async () => {
+  test("an owner cannot leave other members behind; transfer then leave works", async () => {
     const solo = await createUser(db, "Solo");
     const hs = await createHousehold(solo, "Casa Solo");
-    await rejects(as(db, solo, (q) => q("select baptista.remove_member($1, $2)", [hs, solo.id])), /last_owner/);
-
     const helper = await createUser(db, "Aiuto");
     await as(db, solo, (q) => q("select baptista.invite_member($1, $2)", [hs, helper.email]));
     await rejects(
@@ -140,9 +139,11 @@ describe("phase 01 — households and membership", () => {
       /not_found/, // pending members cannot become owners
     );
     await as(db, helper, (q) => q("select baptista.respond_to_invite($1, true)", [hs]));
+    await rejects(as(db, solo, (q) => q("select baptista.remove_member($1, $2)", [hs, solo.id])), /last_owner/);
     await as(db, solo, (q) => q("select baptista.transfer_ownership($1, $2)", [hs, helper.id]));
     await as(db, solo, (q) => q("select baptista.remove_member($1, $2)", [hs, solo.id]));
     assert.equal(await count(solo, "select * from baptista.households where id = $1", [hs]), 0);
+    assert.equal(await count(helper, "select * from baptista.households where id = $1", [hs]), 1);
   });
 });
 

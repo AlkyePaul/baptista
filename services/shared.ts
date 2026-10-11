@@ -65,6 +65,7 @@ export type Table =
   | "habits"
   | "food_items"
   | "meals"
+  | "recipes"
   | "diet_entries"
   | "expenses"
   | "finance_goals"

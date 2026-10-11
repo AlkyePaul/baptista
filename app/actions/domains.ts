@@ -9,7 +9,6 @@ import { uuidSchema } from "@/lib/households/permissions";
 import * as calendar from "@/services/calendar";
 import * as goals from "@/services/goals";
 import * as habits from "@/services/habits";
-import * as intelligence from "@/services/intelligence";
 import * as notes from "@/services/notes";
 import { deleteRecord, parseForm } from "@/services/shared";
 import * as tasks from "@/services/tasks";
@@ -154,10 +153,6 @@ export async function toggleHabitDayAction(habitId: string, day: string): Promis
 
 // Observations -------------------------------------------------------------------------------
 
-export async function dismissObservationAction(observationId: string): Promise<ActionState> {
-  const ctx = await requireExecutionContext();
-  return run(() => intelligence.dismissObservation(ctx, id(observationId)));
-}
 
 // Delete (generic, scoped to the current household; RLS decides) -----------------------------
 

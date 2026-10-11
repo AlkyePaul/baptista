@@ -4,10 +4,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { run } from "@/lib/actions";
 import { DomainError, type ActionState } from "@/lib/errors";
-import { getUserContext, HOUSEHOLD_COOKIE, requireExecutionContext } from "@/lib/households/context";
+import { requireUser } from "@/lib/auth/session";
+import { defaultDisplayName, getUserContext, HOUSEHOLD_COOKIE, requireExecutionContext } from "@/lib/households/context";
 import { uuidSchema } from "@/lib/households/permissions";
 import * as households from "@/services/households";
 import { parseForm } from "@/services/shared";
+import { createClient } from "@/lib/supabase/server";
 
 const COOKIE_OPTIONS = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 365 };
 
@@ -54,7 +56,43 @@ export async function inviteMemberAction(_: ActionState, formData: FormData): Pr
   const parsed = parseForm(households.inviteSchema, formData);
   if (!parsed.ok) return parsed.state;
   const ctx = await requireExecutionContext();
-  return run(() => households.inviteMember(ctx, parsed.data.email), "Invito inviato. La persona lo vedrà al prossimo accesso.");
+  let code: string | null = null;
+  const state = await run(async () => {
+    code = await households.inviteMember(ctx, parsed.data.email);
+  });
+  if (!state.ok) return state;
+  if (!code) return { ok: true, message: "Invito inviato. La persona lo vedrà al prossimo accesso." };
+  const shown = `${String(code).slice(0, 4)}-${String(code).slice(4)}`;
+  return {
+    ok: true,
+    message: `Codice invito per ${parsed.data.email}: ${shown}. Mandalo tu alla persona: le servirà per entrare in Baptista. Vale 14 giorni e si può usare una sola volta.`,
+  };
+}
+
+export async function cancelInvitationAction(email: string): Promise<ActionState> {
+  const ctx = await requireExecutionContext();
+  return run(() => households.cancelInvitation(ctx, email), "Invito annullato.");
+}
+
+/** Redeems an invite code: works with or without a Baptista profile (see /invito). */
+export async function claimInvitationAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = parseForm(households.inviteCodeSchema, formData);
+  if (!parsed.ok) return parsed.state;
+  const user = await requireUser();
+  const supabase = await createClient();
+  let householdId: string | null = null;
+  const state = await run(async () => {
+    householdId = await households.claimInvitation({ supabase }, parsed.data.code, defaultDisplayName(user.email));
+  });
+  if (!state.ok) return state;
+  if (!householdId) {
+    return {
+      ok: false,
+      message: `Codice non valido o scaduto per ${user.email ?? "questo account"}. Controlla di aver usato l'email invitata, oppure chiedi un nuovo invito.`,
+    };
+  }
+  (await cookies()).set(HOUSEHOLD_COOKIE, householdId, COOKIE_OPTIONS);
+  redirect("/");
 }
 
 export async function removeMemberAction(userId: string): Promise<ActionState> {

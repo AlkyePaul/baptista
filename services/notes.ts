@@ -12,9 +12,9 @@ export const MAX_ITEMS = 200;
 
 export const noteSchema = z.object({
   title: requiredText(120, "Inserisci un titolo."),
-  kind: z.enum(["note", "list", "recipe"]),
+  kind: z.enum(["note", "list"]),
   body: optionalText(10000),
-  /** Lists and recipes (ingredients): initial items, one per line. */
+  /** Lists: initial items, one per line. */
   items_text: z
     .string()
     .optional()

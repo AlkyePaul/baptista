@@ -10,7 +10,7 @@ const HOME: NavItem = { href: "/", label: "Home", icon: "home" };
 const ASSISTANT: NavItem = { href: "/baptista", label: "Baptista", icon: "assistant" };
 
 /**
- * Home and Baptista are fixed; the three middle items belong to the current room. When the room
+ * Home and Baptista are fixed; the middle items (two or three) belong to the current room. When the room
  * changes, the middle group is re-mounted (keyed by room) and slides in, so the swap is visible
  * instead of three labels silently changing under the thumb. The active room item gets a pill in
  * the room colour.
@@ -26,7 +26,7 @@ export function BottomNav({ room, roomItems }: { room: RoomId; roomItems: NavIte
       <ul className="mx-auto grid max-w-md grid-cols-5">
         <NavLink item={HOME} active={isActive(HOME.href)} />
         <li className="col-span-3" key={room}>
-          <ul className="nav-swap grid grid-cols-3" data-room-tile={room}>
+          <ul className="nav-swap grid" style={{ gridTemplateColumns: `repeat(${roomItems.length}, minmax(0, 1fr))` }} data-room-tile={room}>
             {roomItems.map((item) => (
               <NavLink key={item.href} item={item} active={isActive(item.href)} roomTinted />
             ))}

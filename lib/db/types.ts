@@ -1,7 +1,5 @@
 /** Row shapes of the `baptista` schema as read by the app (subset of columns actually selected). */
 
-import type { MealItem } from "@/lib/nutrition";
-
 export type Visibility = "private" | "household";
 export type MemberRole = "owner" | "member";
 export type MemberState = "pending" | "active" | "revoked";
@@ -59,8 +57,7 @@ export type Task = RecordBase & {
 export type ChecklistItem = { id: string; text: string; done: boolean };
 
 export type Note = RecordBase & {
-  /** "recipe" = ingredient checklist + free text, shown in the Cucina (D25). */
-  kind: "note" | "list" | "recipe";
+  kind: "note" | "list";
   title: string;
   body: string | null;
   items: ChecklistItem[];
@@ -120,7 +117,28 @@ export type Observation = {
 
 // Cucina (D25) -------------------------------------------------------------------------------
 
+/** D31: the household food catalog (Open Food Facts or added by a member). */
+export type Food = {
+  id: string;
+  household_id: string;
+  name: string;
+  brand: string | null;
+  barcode: string | null;
+  category: string;
+  default_storage: "fridge" | "freezer" | "pantry";
+  kcal_100g: number | null;
+  protein_100g: number | null;
+  carbs_100g: number | null;
+  fat_100g: number | null;
+  nutrition_source: "manual" | "openfoodfacts" | null;
+  /** C8: null = never decided, true = abituale, false = «non chiederlo più». */
+  staple: boolean | null;
+  version: number;
+  created_at: string;
+};
+
 export type FoodItem = RecordBase & {
+  food_id: string;
   product_name: string;
   brand: string | null;
   barcode: string | null;
@@ -145,8 +163,21 @@ export type FoodItem = RecordBase & {
 export type Meal = RecordBase & {
   title: string;
   notes: string | null;
-  items: MealItem[];
 };
+
+/** A food of a meal with its grams (0 allowed: it barely counts); nutrition read from the catalog. */
+export type MealItem = { id: string; meal_id: string; food_id: string; grams: number; position: number; food: Food };
+
+export type Recipe = RecordBase & {
+  title: string;
+  servings: number | null;
+  body: string | null;
+};
+
+export const RECIPE_UNITS = ["g", "kg", "ml", "l", "pz", "cucchiaio", "cucchiaino", "spicchio", "pizzico", "qb"] as const;
+export type RecipeUnit = (typeof RECIPE_UNITS)[number];
+
+export type RecipeIngredient = { id: string; recipe_id: string; food_id: string; amount: number | null; unit: RecipeUnit | null; position: number; food: Food };
 
 export type DietEntry = {
   id: string;
@@ -171,6 +202,7 @@ export type ShoppingItem = {
   kind: "food" | "other";
   name: string;
   name_key: string;
+  food_id: string | null;
   quantity: number | null;
   unit: string | null;
   brand: string | null;
@@ -188,8 +220,6 @@ export type ShoppingItem = {
   version: number;
   created_at: string;
 };
-
-export type PantryStaple = { id: string; name: string; name_key: string; barcode: string | null; status: "staple" | "declined" };
 
 /** Per-viewer memory of what Baptista said and how it was answered (B-4). */
 export type Presentation = {
@@ -275,4 +305,3 @@ export type FinanceGoal = RecordBase & {
   status: "active" | "completed" | "archived";
 };
 
-export type WatchlistItem = { id: string; symbol: string; label: string | null; position: number };

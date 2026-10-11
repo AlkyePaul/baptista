@@ -1,19 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { addFoodEntryAction, addMealEntryAction, addQuickEntryAction, deleteDietEntryAction, setKcalTargetAction } from "@/app/actions/kitchen";
-import { ActionButton, ActionForm, Field, SelectField, SubmitButton } from "@/components/forms";
-import { FoodLookup } from "@/components/food-lookup";
-import { MacroLine, NutritionFields } from "@/components/kitchen";
+import { addFoodEntryAction, addMealEntryAction, addQuickEntryAction, createMealAction, deleteDietEntryAction, setKcalTargetAction } from "@/app/actions/kitchen";
+import { ActionButton, ActionForm, Field, SelectField, SubmitButton, VisibilityField } from "@/components/forms";
+import { FoodPicker } from "@/components/food-picker";
+import { MacroLine } from "@/components/kitchen";
 import { Modal, Tabs } from "@/components/modal";
 import { ProgressRing } from "@/components/progress-ring";
-import { buttonClass, Card, cx, EmptyState, Section, TextLink } from "@/components/ui";
+import { buttonClass, Card, cx, EmptyState, PrivateMark, Section } from "@/components/ui";
 import { addDays, formatLongDay, isCivilDate, localDate, localHour, relativeDay } from "@/lib/dates";
 import { formatItalianNumber } from "@/lib/goals";
 import { requireExecutionContext } from "@/lib/households/context";
 import { diaryTotals, mealTotals, slotForHour, SLOTS, targetProgress, type Slot } from "@/lib/nutrition";
 import { getKcalTarget, listDay } from "@/services/diet";
-import { knownFoods } from "@/services/food";
-import { listMeals } from "@/services/meals";
+import { listMealItems, listMeals } from "@/services/meals";
 
 export const metadata: Metadata = { title: "Dieta" };
 
@@ -29,7 +28,9 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
   const today = localDate(now, tz);
   const day = typeof params.giorno === "string" && isCivilDate(params.giorno) && params.giorno <= today ? params.giorno : today;
 
-  const [entries, target, meals, known] = await Promise.all([listDay(ctx, day), getKcalTarget(ctx), listMeals(ctx), knownFoods(ctx)]);
+  const [entries, target, meals] = await Promise.all([listDay(ctx, day), getKcalTarget(ctx), listMeals(ctx)]);
+  const mealItems = await listMealItems(ctx, meals.map((m) => m.id));
+  const mealKcal = new Map(meals.map((m) => [m.id, mealTotals(mealItems.filter((i) => i.meal_id === m.id)).kcal]));
   const totals = diaryTotals(entries);
   const progress = targetProgress(totals.kcal, target);
   const over = progress.left !== null && progress.left < 0;
@@ -89,13 +90,11 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
               content: (
                 <ActionForm action={addFoodEntryAction}>
                   <input type="hidden" name="eaten_on" value={day} />
-                  <FoodLookup targets={{ name: "label" }} known={known} />
-                  <div className="grid grid-cols-[1fr_7rem] gap-3">
-                    <Field label="Alimento" name="label" required />
+                  <FoodPicker />
+                  <div className="grid grid-cols-2 gap-3">
                     <Field label="Grammi" name="grams" inputMode="decimal" placeholder="100" />
+                    {slotField}
                   </div>
-                  <NutritionFields />
-                  {slotField}
                   <SubmitButton>Aggiungi</SubmitButton>
                 </ActionForm>
               ),
@@ -109,7 +108,7 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
                   <SelectField
                     label="Pasto"
                     name="meal_id"
-                    options={meals.map((m) => ({ value: m.id, label: `${m.title} · ${formatItalianNumber(mealTotals(m.items).kcal)} kcal` }))}
+                    options={meals.map((m) => ({ value: m.id, label: `${m.title} · ${formatItalianNumber(mealKcal.get(m.id) ?? 0)} kcal` }))}
                   />
                   <div className="grid grid-cols-2 gap-3">
                     {slotField}
@@ -118,9 +117,7 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
                   <SubmitButton>Aggiungi</SubmitButton>
                 </ActionForm>
               ) : (
-                <EmptyState>
-                  Nessun pasto salvato. <TextLink href="/stanze/cucina/aggiungi?tipo=pasto">Creane uno</TextLink>
-                </EmptyState>
+                <EmptyState>Nessun pasto salvato: crealo qui sotto, in «Pasti».</EmptyState>
               ),
             },
             {
@@ -177,6 +174,38 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
           </Section>
         );
       })}
+
+      <Section title="Pasti" id="pasti">
+        {meals.length ? (
+          <Card>
+            <ul className="divide-y divide-border">
+              {meals.map((m) => (
+                <li key={m.id}>
+                  <Link href={`/stanze/cucina/pasti/${m.id}`} className="flex min-h-12 items-center justify-between gap-3 px-4">
+                    <span>{m.title}</span>
+                    <span className="flex items-center gap-2 text-sm text-muted">
+                      {formatItalianNumber(mealKcal.get(m.id) ?? 0)} kcal
+                      <PrivateMark visibility={m.visibility} />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : (
+          <EmptyState>Un pasto è una combinazione di alimenti con i grammi, da riusare nel diario. Puoi anche partire da una ricetta.</EmptyState>
+        )}
+        <details className="rounded-2xl border border-border bg-surface">
+          <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium">+ Nuovo pasto</summary>
+          <div className="border-t border-border p-4">
+            <ActionForm action={createMealAction}>
+              <Field label="Nome del pasto" name="title" placeholder="Es. Colazione classica" required />
+              <VisibilityField />
+              <SubmitButton>Crea e aggiungi gli alimenti</SubmitButton>
+            </ActionForm>
+          </div>
+        </details>
+      </Section>
 
       <details className="rounded-2xl border border-border bg-surface">
         <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium">Obiettivo giornaliero</summary>

@@ -1,14 +1,14 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { DomainError, throwIfDbError } from "@/lib/errors";
-import type { Meal } from "@/lib/db/types";
+import type { Meal, MealItem } from "@/lib/db/types";
 import type { ExecutionContext } from "@/lib/households/context";
 import { visibilitySchema } from "@/lib/households/permissions";
-import type { MealItem } from "@/lib/nutrition";
-import { nutritionFields } from "@/services/food";
-import { decimal, getRecord, optionalText, PAGE_SIZE, requiredText, updateVersioned, versionField } from "@/services/shared";
+import { FOOD_SELECT, normaliseFood } from "@/services/catalog";
+import { decimal, optionalText, PAGE_SIZE, requiredText, updateVersioned, versionField } from "@/services/shared";
+
+/** Meals (D31): catalog foods with grams, for calories and macros. 0 g is fine (garlic). */
 
 export const MAX_MEAL_ITEMS = 50;
 
@@ -20,18 +20,12 @@ export const mealSchema = z.object({
 
 export const updateMealSchema = mealSchema.extend({ version: versionField });
 
-/** One food of a meal: grams plus nutrition per 100 g (calories required to count). */
-export const mealItemSchema = z
-  .object({
-    name: requiredText(120, "Scrivi l'alimento."),
-    grams: decimal("Grammi", { min: 0, exclusiveMin: true, max: 5000, decimals: 1 }),
-    ...nutritionFields,
-    barcode: z.string().regex(/^[0-9]{6,14}$/).optional().transform((v) => v ?? null),
-    version: versionField,
-  })
-  .superRefine((v, ctx) => {
-    if (v.kcal_100g === null) ctx.addIssue({ code: "custom", path: ["kcal_100g"], message: "Indica le calorie per 100 g." });
-  });
+export const mealItemSchema = z.object({
+  food_id: z.uuid({ error: "Scegli un alimento." }),
+  grams: decimal("Grammi", { min: 0, max: 5000, decimals: 1 }).optional().transform((v) => v ?? 0),
+});
+
+export const gramsSchema = z.object({ grams: decimal("Grammi", { min: 0, max: 5000, decimals: 1 }) });
 
 export async function createMeal(ctx: ExecutionContext, input: z.infer<typeof mealSchema>) {
   const { data, error } = await ctx.supabase
@@ -59,22 +53,44 @@ export async function listMeals(ctx: ExecutionContext, limit = PAGE_SIZE): Promi
   return (data ?? []) as Meal[];
 }
 
-/** Item mutations rewrite `items` with the version the user saw (no lost updates). */
-async function mutateItems(ctx: ExecutionContext, id: string, version: number, change: (items: MealItem[]) => MealItem[]) {
-  const meal = await getRecord<Meal>(ctx, "meals", id);
-  if (!meal) throw new DomainError("not_found");
-  if (meal.version !== version) throw new DomainError("conflict");
-  await updateVersioned(ctx, "meals", id, version, { items: change(meal.items) });
+/** Items of one or more meals with their catalog food (nutrition read live). */
+export async function listMealItems(ctx: ExecutionContext, mealIds: string[]): Promise<MealItem[]> {
+  if (!mealIds.length) return [];
+  const { data, error } = await ctx.supabase
+    .from("meal_items")
+    .select(`id, meal_id, food_id, grams, position, food:foods(${FOOD_SELECT})`)
+    .in("meal_id", mealIds)
+    .order("position")
+    .order("created_at");
+  throwIfDbError(error);
+  return ((data ?? []) as unknown as Array<MealItem & { food: Record<string, unknown> }>).map((i) => ({
+    ...i,
+    grams: Number(i.grams),
+    food: normaliseFood(i.food),
+  }));
 }
 
-export async function addMealItem(ctx: ExecutionContext, id: string, input: z.infer<typeof mealItemSchema>) {
-  const { version, kcal_100g, ...rest } = input;
-  await mutateItems(ctx, id, version, (items) => {
-    if (items.length >= MAX_MEAL_ITEMS) throw new DomainError("limit_reached");
-    return [...items, { id: randomUUID(), ...rest, kcal_100g: kcal_100g ?? 0 }];
+export async function addMealItem(ctx: ExecutionContext, mealId: string, input: z.infer<typeof mealItemSchema>) {
+  const items = await listMealItems(ctx, [mealId]);
+  if (items.length >= MAX_MEAL_ITEMS) throw new DomainError("limit_reached");
+  const { error } = await ctx.supabase.from("meal_items").insert({
+    household_id: ctx.household.id,
+    meal_id: mealId,
+    food_id: input.food_id,
+    grams: input.grams,
+    position: (items.at(-1)?.position ?? 0) + 1,
   });
+  throwIfDbError(error);
 }
 
-export async function removeMealItem(ctx: ExecutionContext, id: string, version: number, itemId: string) {
-  await mutateItems(ctx, id, version, (items) => items.filter((i) => i.id !== itemId));
+export async function setMealItemGrams(ctx: ExecutionContext, itemId: string, grams: number) {
+  const { data, error } = await ctx.supabase.from("meal_items").update({ grams }).eq("id", itemId).eq("household_id", ctx.household.id).select("id");
+  throwIfDbError(error);
+  if (!data?.length) throw new DomainError("not_found");
+}
+
+export async function removeMealItem(ctx: ExecutionContext, itemId: string) {
+  const { data, error } = await ctx.supabase.from("meal_items").delete().eq("id", itemId).eq("household_id", ctx.household.id).select("id");
+  throwIfDbError(error);
+  if (!data?.length) throw new DomainError("not_found");
 }

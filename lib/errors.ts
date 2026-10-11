@@ -22,8 +22,8 @@ const MESSAGES: Record<string, string> = {
   forbidden_visibility_change: "Solo chi ha creato l'elemento può cambiarne la visibilità.",
   not_found: "Elemento non trovato o non più disponibile.",
   conflict: "Qualcun altro ha modificato questo elemento. Ricarica la pagina e riprova.",
-  invite_unavailable:
-    "Non è possibile invitare questo indirizzo. La persona deve avere già un account Baptista e non far parte della casa.",
+  invite_unavailable: "Questa persona fa già parte della casa o ha già un invito in attesa.",
+  too_many_invites: "Ci sono già 20 inviti aperti: annullane qualcuno prima di invitare altre persone.",
   last_owner: "La casa deve avere almeno un proprietario. Trasferisci prima la proprietà.",
   profile_required: "Completa prima il tuo profilo.",
   invalid_timezone: "Fuso orario non valido.",
@@ -39,6 +39,7 @@ const MESSAGES: Record<string, string> = {
   image_heic: "Le foto HEIC non sono supportate qui: scatta di nuovo dall'app o esporta in JPEG.",
   upload_failed: "Caricamento della foto non riuscito. Riprova.",
   too_few: "Seleziona almeno 7 capi: per meno di 7 rispondi uno per uno.",
+  in_use: "È usato altrove (dispensa, lista, ricette o pasti): non si può eliminare.",
   linked_goal: "Questo obiettivo segue un'abitudine: il progresso si aggiorna da solo.",
   lookup_unavailable: "Open Food Facts non risponde. Riprova tra poco o inserisci i valori a mano.",
 };
@@ -59,6 +60,8 @@ export function codeFromDbError(error: PgLikeError): string {
   switch (error.code) {
     case "23505":
       return "duplicate";
+    case "23503":
+      return "in_use";
     case "23514":
     case "22023":
     case "22P02":

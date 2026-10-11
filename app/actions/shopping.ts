@@ -72,37 +72,19 @@ export async function setShoppingStorageAction(itemId: string, itemVersion: numb
   return run(() => shopping.setItemStorage(ctx, id(itemId), version(itemVersion), storage));
 }
 
-const stapleSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  barcode: z.string().regex(/^[0-9]{6,14}$/).nullable(),
-});
-
-/** Star «Abituale» on a pantry food or a list row (C8): always an explicit choice. */
-export async function setStapleAction(name: string, barcode: string | null, staple: boolean): Promise<ActionState> {
-  const parsed = stapleSchema.safeParse({ name, barcode });
-  if (!parsed.success) return { ok: false, message: messageFor("invalid") };
-  const ctx = await requireExecutionContext();
-  return run(() => shopping.setStaple(ctx, parsed.data.name, parsed.data.barcode, staple ? "staple" : "declined"));
-}
-
-export async function removeStapleAction(stapleId: string): Promise<ActionState> {
-  const ctx = await requireExecutionContext();
-  return run(() => shopping.removeStaple(ctx, id(stapleId)));
-}
-
-const ingredientsSchema = z.object({
-  ingredient: z.preprocess((v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]), z.array(z.string().trim().min(1).max(120)).max(100)),
+const foodsSchema = z.object({
+  food: z.preprocess((v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]), z.array(uuidSchema).max(100)),
 });
 
 /** C3: only the ingredients the user ticked go to the list (deduplicated by the database). */
 export async function addIngredientsAction(_: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = parseForm(ingredientsSchema, formData);
+  const parsed = parseForm(foodsSchema, formData);
   if (!parsed.ok) return parsed.state;
-  if (!parsed.data.ingredient.length) return { ok: false, message: "Spunta almeno un ingrediente." };
+  if (!parsed.data.food.length) return { ok: false, message: "Spunta almeno un ingrediente." };
   const ctx = await requireExecutionContext();
-  const n = parsed.data.ingredient.length;
+  const n = parsed.data.food.length;
   return run(
-    () => shopping.addFoods(ctx, parsed.data.ingredient.map((name) => ({ name }))),
+    () => shopping.addFoods(ctx, parsed.data.food),
     n === 1 ? "Aggiunto alla Lista della spesa." : `${n} ingredienti aggiunti alla Lista della spesa.`,
   );
 }

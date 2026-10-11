@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions/auth";
-import { createHouseholdAction, respondToInviteAction } from "@/app/actions/households";
+import { claimInvitationAction, createHouseholdAction, respondToInviteAction } from "@/app/actions/households";
 import { ActionButton, ActionForm, Field, SubmitButton } from "@/components/forms";
 import { buttonClass, Card, Section } from "@/components/ui";
 import { getUserContext } from "@/lib/households/context";
@@ -44,6 +44,17 @@ export default async function WelcomePage({ searchParams }: PageProps<"/benvenut
           </ul>
         </Section>
       ) : null}
+
+      <Section title="Hai un codice invito?">
+        <Card className="p-4">
+          <ActionForm action={claimInvitationAction}>
+            <Field label="Codice invito" name="code" autoComplete="one-time-code" placeholder="ABCD-EFGH" required />
+            <SubmitButton variant="secondary" pendingLabel="Verifica…">
+              Entra nella casa
+            </SubmitButton>
+          </ActionForm>
+        </Card>
+      </Section>
 
       <Section title="Crea una casa">
         <Card className="p-4">

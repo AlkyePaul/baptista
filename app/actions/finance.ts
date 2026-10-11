@@ -4,11 +4,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { run } from "@/lib/actions";
 import { messageFor, type ActionState } from "@/lib/errors";
-import { getUserContext, requireExecutionContext } from "@/lib/households/context";
+import { requireExecutionContext } from "@/lib/households/context";
 import { uuidSchema } from "@/lib/households/permissions";
 import * as finance from "@/services/finance";
 import { deleteRecord, parseForm } from "@/services/shared";
-import * as watchlist from "@/services/watchlist";
 
 const id = (value: string) => uuidSchema.parse(value);
 const version = (value: number) => z.number().int().positive().parse(value);
@@ -67,7 +66,7 @@ export async function deleteBudgetAction(budgetId: string): Promise<ActionState>
   return run(() => finance.deleteBudget(ctx, id(budgetId)));
 }
 
-// Spending goals -----------------------------------------------------------------------------
+// Spending projects («Progetti») -----------------------------------------------------------------------------
 
 export async function createFinanceGoalAction(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = parseForm(finance.financeGoalSchema, formData);
@@ -77,7 +76,7 @@ export async function createFinanceGoalAction(_: ActionState, formData: FormData
   const state = await run(async () => {
     goalId = await finance.createFinanceGoal(ctx, parsed.data);
   });
-  if (state.ok) redirect(`/stanze/finanze/budget/obiettivi/${goalId}`);
+  if (state.ok) redirect(`/stanze/finanze/budget/progetti/${goalId}`);
   return state;
 }
 
@@ -98,26 +97,6 @@ export async function addEstimateLineAction(goalId: string, _: ActionState, form
 export async function removeEstimateLineAction(goalId: string, goalVersion: number, lineId: string): Promise<ActionState> {
   const ctx = await requireExecutionContext();
   return run(() => finance.removeEstimateLine(ctx, id(goalId), version(goalVersion), id(lineId)));
-}
-
-// Watchlist (personal) -----------------------------------------------------------------------
-
-export async function addWatchlistAction(_: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = parseForm(watchlist.watchlistSchema, formData);
-  if (!parsed.ok) return parsed.state;
-  const ctx = await getUserContext();
-  return run(() => watchlist.addToWatchlist(ctx, parsed.data), "Aggiunto.");
-}
-
-export async function removeWatchlistAction(itemId: string): Promise<ActionState> {
-  const ctx = await getUserContext();
-  return run(() => watchlist.removeFromWatchlist(ctx, id(itemId)));
-}
-
-export async function moveWatchlistAction(itemId: string, direction: number): Promise<ActionState> {
-  if (direction !== -1 && direction !== 1) return { ok: false, message: messageFor("invalid") };
-  const ctx = await getUserContext();
-  return run(() => watchlist.moveInWatchlist(ctx, id(itemId), direction));
 }
 
 // Delete -------------------------------------------------------------------------------------

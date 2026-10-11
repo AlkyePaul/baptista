@@ -75,34 +75,14 @@ describe("cucina — inventory, recipes, meals, diary", () => {
     );
   });
 
-  test("recipes are notes of kind 'recipe'; other kinds are still rejected", async () => {
-    await insertOne(
-      anna,
-      `insert into baptista.notes (household_id, kind, title, body, items)
-       values ($1, 'recipe', 'Carbonara', 'Cuocere la pasta…', '[{"id":"a","text":"Guanciale","done":false}]')`,
-      [h1],
-    );
+  test("notes are notes or lists only (recipes have their own cookbook, D31)", async () => {
+    await rejects(as(db, anna, (q) => q("insert into baptista.notes (household_id, kind, title) values ($1, 'recipe', 'x')", [h1])), /check constraint/);
     await rejects(as(db, anna, (q) => q("insert into baptista.notes (household_id, kind, title) values ($1, 'menu', 'x')", [h1])), /check constraint/);
     // Regression (Phase 03 validator): items with missing keys used to pass the check.
     await rejects(
       as(db, anna, (q) => q(`insert into baptista.notes (household_id, kind, title, items) values ($1, 'list', 'x', '[{"text":"Latte"}]')`, [h1])),
       /check constraint/,
     );
-  });
-
-  test("meals validate their items", async () => {
-    const ok = '[{"id":"1","name":"Pasta","grams":80,"kcal_100g":360,"protein_100g":12,"carbs_100g":72,"fat_100g":1.5},{"id":"2","name":"Olio","grams":10,"kcal_100g":884}]';
-    await insertOne(anna, "insert into baptista.meals (household_id, title, items) values ($1, 'Pranzo', $2::jsonb)", [h1, ok]);
-    const bad = [
-      '[{"id":"1","name":"Pasta","grams":-5,"kcal_100g":360}]',
-      '[{"id":"1","name":"Pasta","grams":80}]',
-      '[{"id":"1","name":"Pasta","grams":80,"kcal_100g":360,"fat_100g":"tanto"}]',
-      '[{"id":"1","name":"","grams":80,"kcal_100g":360}]',
-      '{"id":"1"}',
-    ];
-    for (const items of bad) {
-      await rejects(as(db, anna, (q) => q("insert into baptista.meals (household_id, title, items) values ($1, 'x', $2::jsonb)", [h1, items])), /check constraint/);
-    }
   });
 
   test("the calorie diary is always private to its owner", async () => {
@@ -235,7 +215,7 @@ describe("cucina — food detectors", () => {
   });
 });
 
-describe("finanze — categories, expenses, budgets, goals, watchlist", () => {
+describe("finanze — categories, expenses, budgets, projects", () => {
   let food: string;
   let foreignCategory: string;
 
@@ -337,22 +317,6 @@ describe("finanze — categories, expenses, budgets, goals, watchlist", () => {
     );
     await insertOne(anna, "insert into baptista.expenses (household_id, merchant, occurred_on, currency, total, goal_id) values ($1, 'Ryanair', '2026-09-11', 'EUR', 320, $2)", [h1, goal]);
     assert.equal(await count(bruno, "select * from baptista.expenses where goal_id = $1", [goal]), 1);
-  });
-
-  test("the watchlist is personal, validated and limited", async () => {
-    await as(db, anna, (q) => q("insert into baptista.watchlist_items (symbol, label) values ('NASDAQ:AAPL', 'Apple'), ('MIL:ENI', null)"));
-    assert.equal(await count(bruno, "select * from baptista.watchlist_items"), 0);
-    assert.equal(await count(anna, "select * from baptista.watchlist_items"), 2);
-    await rejects(as(db, anna, (q) => q("insert into baptista.watchlist_items (symbol) values ('nasdaq:aapl')")), /check constraint/);
-    await rejects(as(db, anna, (q) => q("insert into baptista.watchlist_items (symbol) values ('<script>')")), /check constraint/);
-    await rejects(
-      as(db, bruno, (q) => q("insert into baptista.watchlist_items (owner_user_id, symbol) values ($1, 'X')", [anna.id])),
-      /permission denied/,
-    );
-    await as(db, bruno, async (q) => {
-      for (let i = 0; i < 30; i++) await q("insert into baptista.watchlist_items (symbol) values ($1)", [`T${i}`]);
-    });
-    await rejects(as(db, bruno, (q) => q("insert into baptista.watchlist_items (symbol) values ('ONE:MORE')")), /limit_reached/);
   });
 });
 

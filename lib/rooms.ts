@@ -36,7 +36,8 @@ export type Room = {
   label: string;
   icon: IconName;
   description: string;
-  nav: [NavItem, NavItem, NavItem];
+  /** Two or three middle items of the bottom bar. */
+  nav: NavItem[];
   available: boolean;
 };
 
@@ -57,7 +58,7 @@ export const ROOMS: Record<RoomId, Room> = {
     id: "cucina",
     label: "Cucina",
     icon: "cutlery",
-    description: "Dispensa con scadenze, ricette, pasti e conta calorie",
+    description: "Dispensa, lista della spesa, ricettario e diario",
     available: true,
     // D25: expiries live inside the Dispensa; the third slot is the diet / calorie counter.
     nav: [
@@ -70,14 +71,14 @@ export const ROOMS: Record<RoomId, Room> = {
     id: "finanze",
     label: "Finanze",
     icon: "piggybank",
-    description: "Spese, budget, progetti di spesa e watchlist",
+    description: "Spese, budget e progetti di spesa",
     available: true,
-    // D26: a receipt is just a way to add an expense (modal inside Spese); budgets and spending
-    // goals share a page; the watchlist shows securities with TradingView widgets.
+    // D26 revised (user 2026-10-11): no market tracking; «Aggiungi» adds an expense, a budget or
+    // a project; budgets and projects share a page.
     nav: [
       { href: "/stanze/finanze/spese", label: "Spese", icon: "coins" },
+      { href: "/stanze/finanze/aggiungi", label: "Aggiungi", icon: "add" },
       { href: "/stanze/finanze/budget", label: "Budget", icon: "target" },
-      { href: "/stanze/finanze/watchlist", label: "Watchlist", icon: "chart" },
     ],
   },
   guardaroba: {
@@ -89,7 +90,6 @@ export const ROOMS: Record<RoomId, Room> = {
     nav: [
       { href: "/stanze/guardaroba/capi", label: "Capi", icon: "hanger" },
       { href: "/stanze/guardaroba/aggiungi", label: "Aggiungi", icon: "add" },
-      { href: "/stanze/guardaroba/categorie", label: "Categorie", icon: "tag" },
     ],
   },
 };

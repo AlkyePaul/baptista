@@ -6,20 +6,19 @@ import {
   setExpiriesAction,
   setShoppingStatusAction,
   setShoppingStorageAction,
-  setStapleAction,
   stockAllAction,
   tickShoppingItemAction,
   undoStockAction,
   type StockState,
 } from "@/app/actions/shopping";
-import { FoodLookup } from "@/components/food-lookup";
+import { setStapleAction } from "@/app/actions/catalog";
+import { FoodPicker } from "@/components/food-picker";
 import { ActionForm, Field, SubmitButton } from "@/components/forms";
 import { ListAccordion } from "@/components/list-accordion";
 import { buttonClass, cx } from "@/components/ui";
 import type { ShoppingItem } from "@/lib/db/types";
 import { STORAGES, UNITS } from "@/lib/food";
 import { formatItalianNumber } from "@/lib/goals";
-import type { FoodFacts } from "@/lib/openfoodfacts-parse";
 
 const UNDO_MS = 30_000;
 const storageLabel = (id: string | null) => STORAGES.find((s) => s.id === id)?.label ?? "";
@@ -35,15 +34,13 @@ export function ShoppingList({
   items,
   inPantry,
   staples,
-  known = [],
   defaultOpen = true,
 }: {
   items: ShoppingItem[];
   /** List row id → what is already in the house («1 l · Frigo · scade 14/10»). */
   inPantry: Record<string, string>;
-  /** Name keys starred as staples. */
+  /** Catalog food ids starred as staples. */
   staples: string[];
-  known?: FoodFacts[];
   defaultOpen?: boolean;
 }) {
   const food = items.filter((i) => i.kind === "food");
@@ -111,13 +108,13 @@ export function ShoppingList({
       </div>
       <ul className="flex flex-col gap-1 px-2 py-2">
         {food.map((item) => (
-          <FoodRow key={item.id} item={item} note={inPantry[item.id]} starred={staples.includes(item.name_key)} onTick={() => tick(item)} disabled={pending} />
+          <FoodRow key={item.id} item={item} note={inPantry[item.id]} starred={item.food_id !== null && staples.includes(item.food_id)} onTick={() => tick(item)} disabled={pending} />
         ))}
         {!food.length ? <li className="px-2 py-1 text-sm text-muted">Nessun alimento da comprare.</li> : null}
       </ul>
       <div className="px-4 pb-3">
         {adding === "food" ? (
-          <AddForm kind="food" known={known} onDone={() => setAdding(null)} />
+          <AddForm kind="food" onDone={() => setAdding(null)} />
         ) : (
           <button type="button" onClick={() => setAdding("food")} className={cx(buttonClass.ghost, "px-2 text-accent")}>
             + Alimento
@@ -271,7 +268,7 @@ function FoodRow({
           disabled={busy || starred}
           onClick={() =>
             start(async () => {
-              await setStapleAction(item.name, item.barcode, true);
+              if (item.food_id) await setStapleAction(item.food_id, true);
             })
           }
           className={cx("flex size-10 items-center justify-center text-lg", starred ? "text-[#d9a33a]" : "text-muted")}
@@ -320,40 +317,31 @@ function OtherRow({ item, onTick, disabled }: { item: ShoppingItem; onTick: () =
   );
 }
 
-function AddForm({ kind, known = [], onDone }: { kind: "food" | "other"; known?: FoodFacts[]; onDone: () => void }) {
+function AddForm({ kind, onDone }: { kind: "food" | "other"; onDone: () => void }) {
   return (
     <ActionForm action={addShoppingItemAction} className="gap-3 rounded-2xl border border-border p-3">
       <input type="hidden" name="kind" value={kind} />
       {kind === "food" ? (
         <>
-          <FoodLookup targets={{ name: "name", brand: "brand", barcode: "barcode" }} known={known} />
-          <input type="hidden" name="brand" />
-          <input type="hidden" name="barcode" />
-          <input type="hidden" name="category" />
-          <input type="hidden" name="kcal_100g" />
-          <input type="hidden" name="protein_100g" />
-          <input type="hidden" name="carbs_100g" />
-          <input type="hidden" name="fat_100g" />
-          <input type="hidden" name="nutrition_source" />
+          <FoodPicker autoFocus />
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Quantità" name="quantity" inputMode="decimal" placeholder="Facoltativa" />
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Unità
+              <select name="unit" defaultValue="" className="min-h-12 rounded-xl border border-border bg-surface px-3 text-base font-normal">
+                <option value="">—</option>
+                {UNITS.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </>
-      ) : null}
-      <Field label={kind === "food" ? "Alimento" : "Cosa"} name="name" placeholder={kind === "food" ? "Es. Latte" : "Es. Detersivo"} required />
-      {kind === "food" ? (
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Quantità" name="quantity" inputMode="decimal" placeholder="Facoltativa" />
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Unità
-            <select name="unit" defaultValue="" className="min-h-12 rounded-xl border border-border bg-surface px-3 text-base font-normal">
-              <option value="">—</option>
-              {UNITS.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      ) : null}
+      ) : (
+        <Field label="Cosa" name="name" placeholder="Es. Detersivo" required />
+      )}
       <div className="flex gap-2">
         <SubmitButton pendingLabel="…" className="flex-1">
           Aggiungi
