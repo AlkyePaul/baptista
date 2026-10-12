@@ -3,13 +3,14 @@ import { test } from "node:test";
 import { describeWeather, dressAdvice, financeGreeting, kitchenGreeting, wardrobeGreeting } from "./greetings";
 
 test("wardrobe greeting: weather, temperatures and what to wear; cautious without weather", () => {
-  const g = wardrobeGreeting({ place: "Milano", temperature: 9.6, min: 6, max: 14, code: 61, rainChance: 80 });
+  const g = wardrobeGreeting({ place: "Milano", source: "ip", temperature: 9.6, min: 6, max: 14, code: 61, rainChance: 80 });
   assert.match(g.text, /^Il meteo a Milano è pioggia: ora 10°, oggi tra 6° e 14°\. Puoi vestirti con un giaccone/);
   assert.match(g.text, /ombrello/);
   assert.equal(describeWeather(0), "sereno");
-  assert.match(dressAdvice({ place: null, temperature: 28, min: 22, max: 31, code: 0, rainChance: 0 }), /^abiti leggeri/);
-  assert.match(dressAdvice({ place: null, temperature: 15, min: 6, max: 20, code: 1, rainChance: 0 }), /a strati/);
+  assert.match(dressAdvice({ place: null, source: "device", temperature: 28, min: 22, max: 31, code: 0, rainChance: 0 }), /^abiti leggeri/);
+  assert.match(dressAdvice({ place: null, source: "device", temperature: 15, min: 6, max: 20, code: 1, rainChance: 0 }), /a strati/);
   assert.match(wardrobeGreeting(null).text, /meteo/);
+  assert.match(wardrobeGreeting({ place: null, source: "device", temperature: 20, min: 15, max: 22, code: 0, rainChance: 0 }).text, /^Il meteo dove ti trovi è sereno/);
 });
 
 test("kitchen greeting: nothing, under 500 kcal, no target, against the target", () => {

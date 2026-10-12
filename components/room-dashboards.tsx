@@ -20,6 +20,7 @@ import { WardrobeGrid } from "@/components/wardrobe-grid";
 import { SEASONS, seasonOf } from "@/lib/wardrobe";
 import { BaptistaRoom } from "@/components/baptista/room";
 import { BaptistaGreeting } from "@/components/baptista/greeting";
+import { DeviceLocation } from "@/components/baptista/device-location";
 import { financeGreeting, kitchenGreeting, wardrobeGreeting } from "@/lib/baptista/greetings";
 import { getWeather } from "@/services/weather";
 
@@ -181,7 +182,9 @@ export async function WardrobeRoom({ ctx, now }: { ctx: ExecutionContext; now: D
 
   return (
     <>
-      <BaptistaGreeting greeting={wardrobeGreeting(weather)} />
+      <BaptistaGreeting greeting={wardrobeGreeting(weather)}>
+        <DeviceLocation active={weather?.source === "device"} />
+      </BaptistaGreeting>
       <BaptistaRoom ctx={ctx} room="guardaroba" />
       <div className="grid grid-cols-3 gap-2">
         <Shortcut href="/stanze/guardaroba/aggiungi" icon="camera" label="Fotografa" />

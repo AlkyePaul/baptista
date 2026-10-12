@@ -12,6 +12,8 @@ export type Greeting = { text: string; expression: Expression };
 
 export type WeatherNow = {
   place: string | null;
+  /** Where the position came from: the device (GPS, allowed by the user), the IP, the time zone. */
+  source: "device" | "ip" | "zone";
   temperature: number;
   min: number;
   max: number;
@@ -61,7 +63,7 @@ export function wardrobeGreeting(weather: WeatherNow | null): Greeting {
   if (!weather) {
     return { expression: "thoughtful", text: "Oggi non riesco a leggere il meteo: dai un'occhiata fuori prima di scegliere cosa indossare." };
   }
-  const where = weather.place ? ` a ${weather.place}` : "";
+  const where = weather.place ? ` a ${weather.place}` : weather.source === "device" ? " dove ti trovi" : "";
   const t = (n: number) => `${formatItalianNumber(Math.round(n))}°`;
   return {
     expression: "suggestion",
