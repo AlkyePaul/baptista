@@ -2,9 +2,11 @@ import Link from "next/link";
 import { toggleHabitDayAction } from "@/app/actions/domains";
 import { BaptistaThread } from "@/components/baptista/thread";
 import { ActionButton } from "@/components/forms";
+import { ChecklistRows } from "@/components/checklist";
+import { ListAccordion } from "@/components/list-accordion";
 import { ProgressRing } from "@/components/progress-ring";
 import { recordColor } from "@/lib/categories";
-import { Card, EmptyState, Section, TextLink } from "@/components/ui";
+import { Card, EmptyState, PrivateMark, Section, TextLink } from "@/components/ui";
 import {
   addDays,
   formatLongDay,
@@ -18,7 +20,8 @@ import {
   type ExecutionContext,
 } from "@/lib/households/context";
 import { getCurrentRoom } from "@/lib/rooms-server";
-import { listEventsBetween } from "@/services/calendar";
+import { eventStartDay, listEventsBetween } from "@/services/calendar";
+import { listNotes } from "@/services/notes";
 import { goalPercent } from "@/lib/goals";
 import { listGoals } from "@/services/goals";
 import { getHabitWeeks, listHabits } from "@/services/habits";
@@ -64,14 +67,25 @@ async function LivingRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
   const tz = ctx.household.timezone;
   const today = localDate(now, tz);
 
-  const [events, dueToday, habits, goals] = await Promise.all([
-    listEventsBetween(ctx, today, addDays(today, 1)),
-    listTasksDueBetween(ctx, today, today),
+  const tomorrow = addDays(today, 1);
+
+  const [events, due, habits, goals, lists, notes] = await Promise.all([
+    listEventsBetween(ctx, today, addDays(today, 2)),
+    listTasksDueBetween(ctx, today, tomorrow),
     listHabits(ctx, { activeOnly: true }),
     listGoals(ctx),
+    listNotes(ctx, 6, "list"),
+    listNotes(ctx, 6, "note"),
   ]);
-  const openToday = dueToday.filter((t) => t.status === "open");
-  const eventsLeft = events.filter(
+  // The calendar summary covers today and tomorrow; an event already running counts for today.
+  const days = [today, tomorrow].map((day) => ({
+    day,
+    events: events.filter(
+      (e) => (eventStartDay(e, tz) < today ? today : eventStartDay(e, tz)) === day,
+    ),
+    tasks: due.filter((t) => t.status === "open" && t.due_date === day),
+  }));
+  const eventsLeft = days[0].events.filter(
     (e) => e.all_day || (e.starts_at !== null && new Date(e.starts_at) > now),
   ).length;
   // Phase 04.1: Baptista takes the place of «In evidenza» (same observations, same ranking).
@@ -99,46 +113,63 @@ async function LivingRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
       <BaptistaThread thread={thread} timeZone={tz} />
 
       <Section
-        title="Oggi"
+        title="Oggi e domani"
         action={
           <TextLink href={`/calendario?giorno=${today}`}>Calendario</TextLink>
         }
       >
-        {events.length || openToday.length ? (
+        {days.some((d) => d.events.length || d.tasks.length) ? (
           <Card>
-            <ul className="divide-y divide-border">
-              {events.map((event) => (
-                <li key={event.id}>
-                  <Link
-                    href={`/calendario/${event.id}`}
-                    className="flex min-h-14 items-center gap-4 px-4 py-3"
-                  >
-                    <span className="w-14 shrink-0 font-mono text-sm text-muted">
-                      {event.all_day
-                        ? "Giorno"
-                        : formatTime(new Date(event.starts_at!), tz)}
-                    </span>
-                    <span className="flex-1">{event.title}</span>
-                  </Link>
-                </li>
-              ))}
-              {openToday.map((task) => (
-                <li key={task.id}>
-                  <Link
-                    href={`/aggiungi/attivita/${task.id}`}
-                    className="flex min-h-14 items-center gap-4 px-4 py-3"
-                  >
-                    <span className="w-14 shrink-0 text-sm text-muted">
-                      Da fare
-                    </span>
-                    <span className="flex-1">{task.title}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            {days.map(({ day, events: dayEvents, tasks }) => (
+              <div key={day} className="border-b border-border last:border-b-0">
+                <Link
+                  href={`/calendario?giorno=${day}`}
+                  className="block px-4 pt-3 text-xs font-semibold tracking-wider text-muted uppercase"
+                >
+                  {day === today ? "Oggi" : "Domani"}
+                </Link>
+                {dayEvents.length || tasks.length ? (
+                  <ul className="divide-y divide-border">
+                    {dayEvents.map((event) => (
+                      <li key={event.id}>
+                        <Link
+                          href={`/calendario/${event.id}`}
+                          className="flex min-h-14 items-center gap-4 px-4 py-3"
+                        >
+                          <span className="w-14 shrink-0 font-mono text-sm text-muted">
+                            {event.all_day ||
+                            eventStartDay(event, tz) !== day
+                              ? "Giorno"
+                              : formatTime(new Date(event.starts_at!), tz)}
+                          </span>
+                          <span className="flex-1">{event.title}</span>
+                        </Link>
+                      </li>
+                    ))}
+                    {tasks.map((task) => (
+                      <li key={task.id}>
+                        <Link
+                          href={`/aggiungi/attivita/${task.id}`}
+                          className="flex min-h-14 items-center gap-4 px-4 py-3"
+                        >
+                          <span className="w-14 shrink-0 text-sm text-muted">
+                            Da fare
+                          </span>
+                          <span className="flex-1">{task.title}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-4 pt-1 pb-3 text-sm text-muted">
+                    Niente in programma.
+                  </p>
+                )}
+              </div>
+            ))}
           </Card>
         ) : (
-          <EmptyState>Niente in programma per oggi.</EmptyState>
+          <EmptyState>Niente in programma per oggi e domani.</EmptyState>
         )}
       </Section>
 
@@ -230,6 +261,71 @@ async function LivingRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
           <EmptyState>
             Nessun obiettivo.{" "}
             <TextLink href="/abitudini#obiettivi">Aggiungine uno</TextLink>
+          </EmptyState>
+        )}
+      </Section>
+
+      <Section
+        title="Liste"
+        action={<TextLink href="/aggiungi?tipo=lista">Tutte</TextLink>}
+      >
+        {lists.length ? (
+          lists.map((note) => (
+            <ListAccordion
+              key={note.id}
+              id={`note:${note.id}`}
+              title={
+                <span className="flex items-center gap-2">
+                  {note.title}
+                  <PrivateMark visibility={note.visibility} />
+                </span>
+              }
+              count={note.items.filter((i) => !i.done).length}
+              defaultOpen={false}
+            >
+              <ChecklistRows note={note} />
+              <div className="flex justify-end border-t border-border px-2 py-1">
+                <TextLink href={`/aggiungi/note/${note.id}`}>Apri</TextLink>
+              </div>
+            </ListAccordion>
+          ))
+        ) : (
+          <EmptyState>
+            Nessuna lista.{" "}
+            <TextLink href="/aggiungi?tipo=lista">Creane una</TextLink>
+          </EmptyState>
+        )}
+      </Section>
+
+      <Section
+        title="Note e appunti"
+        action={<TextLink href="/aggiungi?tipo=nota">Tutte</TextLink>}
+      >
+        {notes.length ? (
+          <ul className="grid grid-cols-2 gap-2">
+            {notes.map((note) => (
+              <li key={note.id}>
+                <Link
+                  href={`/aggiungi/note/${note.id}`}
+                  className="flex h-full min-h-24 flex-col gap-2 rounded-2xl border border-border bg-surface p-4"
+                >
+                  <span className="font-medium">{note.title}</span>
+                  {note.body ? (
+                    <span className="line-clamp-2 text-sm text-muted">
+                      {note.body}
+                    </span>
+                  ) : null}
+                  <span className="mt-auto flex items-center gap-2 text-sm text-muted">
+                    <PrivateMark visibility={note.visibility} />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState>
+            Nessuna nota.{" "}
+            <TextLink href="/aggiungi?tipo=nota">Scrivine una</TextLink>
           </EmptyState>
         )}
       </Section>

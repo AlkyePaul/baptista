@@ -8,7 +8,7 @@ import { localDate, monthOf } from "@/lib/dates";
 import { STORAGES } from "@/lib/food";
 import { formatItalianNumber } from "@/lib/goals";
 import type { ExecutionContext } from "@/lib/households/context";
-import { addAmounts, budgetUsage, totalsByCurrency } from "@/lib/money";
+import { addAmounts, budgetUsage, monthElapsedShare, totalsByCurrency } from "@/lib/money";
 import { diaryTotals, targetProgress } from "@/lib/nutrition";
 import type { IconName } from "@/lib/rooms";
 import { getKcalTarget, listDay } from "@/services/diet";
@@ -19,6 +19,9 @@ import { listWardrobe, signedUrls } from "@/services/wardrobe";
 import { WardrobeGrid } from "@/components/wardrobe-grid";
 import { SEASONS, seasonOf } from "@/lib/wardrobe";
 import { BaptistaRoom } from "@/components/baptista/room";
+import { BaptistaGreeting } from "@/components/baptista/greeting";
+import { financeGreeting, kitchenGreeting, wardrobeGreeting } from "@/lib/baptista/greetings";
+import { getWeather } from "@/services/weather";
 
 /** Home of each room: what matters today in that room, computed without any AI (D25/D26). */
 
@@ -40,9 +43,12 @@ export async function KitchenRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
   const [pantry, entries, target, recipes] = await Promise.all([listPantry(ctx), listDay(ctx, today), getKcalTarget(ctx), listRecipes(ctx)]);
   const kcal = diaryTotals(entries).kcal;
   const progress = targetProgress(kcal, target);
+  // A «pasto» is a filled slot of the diary (colazione, pranzo, cena, spuntini).
+  const meals = new Set(entries.map((e) => e.slot)).size;
 
   return (
     <>
+      <BaptistaGreeting greeting={kitchenGreeting(meals, kcal, target)} />
       <BaptistaRoom ctx={ctx} room="cucina" />
       <div className="grid grid-cols-3 gap-2">
         <Shortcut href="/stanze/cucina/aggiungi" icon="add" label="Alimento" />
@@ -105,6 +111,7 @@ export async function FinanceRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
 
   return (
     <>
+      <BaptistaGreeting greeting={financeGreeting(monthElapsedShare(today), mainTotal, overall ? Number(overall.monthly_amount) : null, main)} />
       <BaptistaRoom ctx={ctx} room="finanze" />
       <div className="grid grid-cols-3 gap-2">
         <Shortcut href="/stanze/finanze/aggiungi?tipo=spesa" icon="add" label="Spesa" />
@@ -166,7 +173,7 @@ export async function FinanceRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
 
 export async function WardrobeRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
   const season = seasonOf(localDate(now, ctx.household.timezone));
-  const items = await listWardrobe(ctx);
+  const [items, weather] = await Promise.all([listWardrobe(ctx), getWeather(ctx.household.timezone)]);
   const inSeason = items.filter((i) => i.seasons.includes(season));
   const recent = items.slice(0, 4);
   const urls = await signedUrls(ctx, recent.map((i) => i.thumb_path));
@@ -174,6 +181,7 @@ export async function WardrobeRoom({ ctx, now }: { ctx: ExecutionContext; now: D
 
   return (
     <>
+      <BaptistaGreeting greeting={wardrobeGreeting(weather)} />
       <BaptistaRoom ctx={ctx} room="guardaroba" />
       <div className="grid grid-cols-3 gap-2">
         <Shortcut href="/stanze/guardaroba/aggiungi" icon="camera" label="Fotografa" />

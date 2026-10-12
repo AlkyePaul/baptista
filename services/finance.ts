@@ -22,7 +22,7 @@ import {
 } from "@/services/shared";
 
 const currency = z.enum(CURRENCIES, { error: "Scegli una valuta." });
-const optionalUuid = z.union([z.undefined(), uuidSchema]).transform((v) => v ?? null);
+const optionalUuid = uuidSchema.optional().transform((v) => v ?? null);
 
 // Categories ---------------------------------------------------------------------------------
 
