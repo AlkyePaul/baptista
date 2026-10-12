@@ -32,7 +32,6 @@ export default async function BudgetPage() {
   const spent = (categoryId: string | null, currency: string) =>
     addAmounts(expenses.filter((e) => e.currency === currency && (categoryId === null || e.category_id === categoryId)).map((e) => e.total));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
-  const overall = budgets.filter((b) => b.category_id === null);
   const perCategory = budgets
     .filter((b) => b.category_id !== null)
     .sort((a, b) => (categoryById.get(a.category_id!)?.name ?? "").localeCompare(categoryById.get(b.category_id!)?.name ?? "", "it"));
@@ -48,23 +47,23 @@ export default async function BudgetPage() {
       </header>
 
       <Section
-        title="Budget del mese"
+        title="Budget per categoria"
         action={
           <Link href="/stanze/finanze/aggiungi?tipo=budget" className={cx(buttonClass.secondary, "min-h-10 px-4 text-sm")}>
             Imposta
           </Link>
         }
       >
-        {budgets.length ? (
+        {perCategory.length ? (
           <Card>
             <ul className="divide-y divide-border">
-              {[...overall, ...perCategory].map((b) => (
+              {perCategory.map((b) => (
                 <BudgetRow key={b.id} budget={b} category={b.category_id ? categoryById.get(b.category_id) : undefined} spent={spent(b.category_id, b.currency)} elapsed={elapsed} />
               ))}
             </ul>
           </Card>
         ) : (
-          <EmptyState>Nessun budget. Impostane uno totale o per categoria per vedere come stai spendendo.</EmptyState>
+          <EmptyState>Nessun budget per categoria. Il budget totale del mese è in Spese.</EmptyState>
         )}
         <p className="text-xs text-muted">Contano le spese che puoi vedere; le spese private degli altri membri non sono incluse.</p>
       </Section>

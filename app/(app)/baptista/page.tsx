@@ -95,7 +95,7 @@ export default async function BaptistaPage({ searchParams }: PageProps<"/baptist
         </div>
         {answer ? (
           <div className="flex items-start gap-3" role="status">
-            <BaptistaAvatar expression="suggestion" size={44} />
+            <BaptistaAvatar expression="suggestion" />
             <p className="rounded-2xl rounded-tl-md border border-border bg-surface px-4 py-3">{answer}</p>
           </div>
         ) : null}

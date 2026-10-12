@@ -1,11 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 import { after } from "next/server";
+import { BaptistaAvatar } from "@/components/baptista/avatar";
 import { Icon } from "@/components/icons";
 import { RoomPill } from "@/components/room-pill";
 import { RoomShell } from "@/components/room-shell";
 import { Avatar } from "@/components/ui";
-import { expressionSrc } from "@/lib/baptista/expressions";
 import { requireExecutionContext } from "@/lib/households/context";
 import { getCurrentRoom } from "@/lib/rooms-server";
 import { getDirectory, purgeDepartedData } from "@/services/households";
@@ -34,15 +33,7 @@ export default async function AppLayout({
             aria-label="Baptista, vai alla Home"
             className="flex min-h-11 items-center gap-1.5"
           >
-            <Image
-              src={expressionSrc("suggestion", 192)}
-              alt=""
-              width={40}
-              height={40}
-              unoptimized
-              priority
-              className="size-10 object-contain rounded-full border border-background"
-            />
+            <BaptistaAvatar expression="suggestion" enter={false} />
             <span className="text-2xl font-bold tracking-tight text-ink">
               baptista
             </span>

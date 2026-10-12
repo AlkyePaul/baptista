@@ -147,7 +147,7 @@ Le stanze (D20) colorano **il contenitore**, mai il contenuto. Ogni stanza ha tr
 
 ### 4.1 Header [attuale, come il mockup]
 
-- **Sinistra:** marchio = Baptista (espressione *suggestion*, 40 px, statico, senza animazioni d'ingresso) + wordmark «baptista» minuscolo `text-2xl font-bold tracking-tight text-ink`. Porta alla Home.
+- **Sinistra:** marchio = Baptista (`BaptistaAvatar`, espressione *suggestion*, `--baptista-avatar-size`, senza animazione d'ingresso) + wordmark «baptista» minuscolo `text-2xl font-bold tracking-tight text-ink`. Porta alla Home.
 - **Destra:** pill della stanza compatta (solo icona, cerchio 44 px nel colore della stanza, apre il menu stanze, D20) · avatar dei membri (max 3 sovrapposti, `-space-x-2`, `ring-2 ring-background`, `+N` oltre; portano a Casa) · «+» su cerchio lavanda `bg-highlight text-on-highlight` (proprietario: invita un familiare, `/casa#invita`; membro: Casa).
 - Nessun bordo inferiore: fondo `background/90` con blur. Altezza ~60 px più safe area.
 - Il nome della casa non sta nell'header: è nell'etichetta accessibile degli avatar e nel titolo di Casa; il cambio casa (più membership) vive in Casa → «Le tue case».
@@ -258,6 +258,8 @@ Due implementazioni oggi (`Tabs` in `modal.tsx` e la nav tipi di `aggiungi/page.
 
 ### 5.12 Avatar e miniature
 
+- **Baptista** **[attuale]**: sempre e solo `BaptistaAvatar` (`components/baptista/avatar.tsx`), mai `<Image>` diretti sugli asset. Dimensione unica in tutta l'app: `--baptista-avatar-size` (2.75rem = 44 px) in `globals.css`; il componente non accetta una dimensione. Per cambiarla si modifica solo la variabile.
+
 - `Avatar`: iniziali su 4 pastelli deterministici (`sm` 32 px, `md` 48 px). **[target]** foto profilo quando disponibile (privacy storage, fase 06); i pastelli diventano token `--avatar-1…4`.
 - Miniatura record: 48 px `rounded-xl` `object-cover`, a destra del messaggio Baptista o come leading di riga (alimento, capo). Senza foto: icona del tipo su fondo del tipo al 15%.
 
@@ -302,7 +304,7 @@ Tutti costruiti con §5; qui solo ciò che è specifico.
 
 | Schermata | Pattern |
 | --- | --- |
-| **Filo Baptista** (Home, schede stanza) | Contenitore tinto (§3); avatar del maggiordomo a sinistra (~96 px, espressioni con dissolvenza incrociata); eyebrow «STANZA · N ELEMENTI»; testo `text-lg`; miniatura a destra; pulsanti a tutta larghezza primario → secondario → «Più tardi». Risposte dell'utente: bolla a destra `rounded-2xl` su verde salvia chiaro, appare subito. Messaggi di Baptista successivi: bolla a sinistra nella tinta della stanza più satura. Al massimo una conversazione + 2 bolle compatte (B‑5). |
+| **Filo Baptista** (Home, schede stanza) | Contenitore tinto (§3); avatar del maggiordomo a sinistra (`--baptista-avatar-size`, espressioni con dissolvenza incrociata); eyebrow «STANZA · N ELEMENTI»; testo `text-lg`; miniatura a destra; pulsanti a tutta larghezza primario → secondario → «Più tardi». Risposte dell'utente: bolla a destra `rounded-2xl` su verde salvia chiaro, appare subito. Messaggi di Baptista successivi: bolla a sinistra nella tinta della stanza più satura. Al massimo una conversazione + 2 bolle compatte (B‑5). |
 | **Oggi / eventi** | `ListRow` con leading orario (o chip icona evento), titolo, meta «tutto il giorno» o intervallo; chevron. In Home la riga singola del prossimo evento (mockup «18:30 Ritirare Laia ›») usa chip icona evento. |
 | **Calendario** | Griglia 7 colonne di celle `aspect-square rounded-xl`; oggi = anello accent; selezionato = fondo `--ink`; puntini: eventi `--kind-event`, cose da fare `--kind-task`, max 3. Sotto, il giorno selezionato con la stessa `ListRow`. |
 | **Da fare** | `ListRow` con casella §5.4; meta «Scade domani» (`danger` se scaduta); completate in `<details>`. |

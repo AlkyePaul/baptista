@@ -12,6 +12,8 @@
   --danger: #a33a2c;
   /* Soft red for list rows already in the pantry (A-1): a hint, never an alarm. */
   --already: #fbe8e3;
+  /* One size for Baptista's face everywhere: header, thread bubbles, Baptista page. */
+  --baptista-avatar-size: 2.75rem;
   /* Deep forest green of the wordmark (DESIGN_SYSTEM §2.1). */
   --ink: #21412f;
   /* Soft lavender for small header affordances (the «+» next to the avatars). */

@@ -12,7 +12,7 @@ Remote migrations applied through the Supabase MCP/Dashboard get their version f
 
 ### Applied migrations
 
-`20261009164314_baptista_create_schema`, `20261009192058_baptista_foundations`, `20261009192227_baptista_core_domains`, `20261009212333_baptista_goal_direction`, `20261009212442_baptista_function_grants`, `20261009215527_baptista_categories`, `20261009224445_baptista_kitchen`, `20261009224541_baptista_finance`, `20261010202151_baptista_wardrobe`, `20261010202428_baptista_connections`, `20261010202448_baptista_presentation` (remote SQL equal to the files except some comment banners). New functions inherit EXECUTE for PUBLIC: always revoke it (a DB test enforces that anon/public have nothing).
+`20261009164314_baptista_create_schema`, `20261009192058_baptista_foundations`, `20261009192227_baptista_core_domains`, `20261009212333_baptista_goal_direction`, `20261009212442_baptista_function_grants`, `20261009215527_baptista_categories`, `20261009224445_baptista_kitchen`, `20261009224541_baptista_finance`, `20261010202151_baptista_wardrobe`, `20261010202428_baptista_connections`, `20261010202448_baptista_presentation`, `20261012123725_baptista_food_catalog`, `20261012123825_baptista_invitations` (remote SQL equal to the files except some comment banners). The remote history also holds `20261011164801_baptista_food_catalog_part1`, a no-op (`select 1`) left by a tool test on 2026-10-12, with no local file. New functions inherit EXECUTE for PUBLIC: always revoke it (a DB test enforces that anon/public have nothing).
 
 ### Schema `baptista` (created 2026-10-09)
 

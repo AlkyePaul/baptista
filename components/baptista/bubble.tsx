@@ -99,7 +99,7 @@ export function BaptistaBubble({
   const { visible, done, skip } = useTypewriter(text, { animate, delay: animate && enter ? AVATAR_FADE_MS : animate ? 250 : 0, onDone: onTyped });
   return (
     <div className="flex items-start gap-3">
-      <BaptistaAvatar expression={expression} size={compact ? 44 : 56} enter={enter && animate} />
+      <BaptistaAvatar expression={expression} enter={enter && animate} />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {header ? <p className="text-xs font-semibold tracking-wider text-muted">{header}</p> : null}
         <div

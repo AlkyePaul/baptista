@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { deleteBudgetAction } from "@/app/actions/finance";
 import { BudgetBar, Money } from "@/components/finance";
+import { ActionButton } from "@/components/forms";
 import { buttonClass, Card, cx, EmptyState, PrivateMark, Section } from "@/components/ui";
 import type { Expense } from "@/lib/db/types";
 import { addMonths, formatMonth, isMonth, localDate, monthOf, relativeDay } from "@/lib/dates";
@@ -61,16 +63,31 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/stanze/
         ) : (
           <p className="text-muted">Nessuna spesa registrata in questo mese.</p>
         )}
+        {/* The overall monthly budget lives here (user 2026-10-11); the Budget page keeps the categories. */}
         {overall ? (
           <div className="flex flex-col gap-1.5">
             <BudgetBar usage={budgetUsage(mainTotal, Number(overall.monthly_amount))} color="#3f9d8c" label="Budget del mese" />
-            <p className="text-sm text-muted">
-              Budget <Money amount={overall.monthly_amount} currency={main} />
-              {" · "}
-              {mainTotal > Number(overall.monthly_amount) ? "superato" : <>restano <Money amount={Number(overall.monthly_amount) - mainTotal} currency={main} /></>}
-            </p>
+            <div className="flex items-center justify-between gap-2 text-sm text-muted">
+              <p>
+                Budget <Money amount={overall.monthly_amount} currency={main} />
+                {" · "}
+                {mainTotal > Number(overall.monthly_amount) ? "superato" : <>restano <Money amount={Number(overall.monthly_amount) - mainTotal} currency={main} /></>}
+              </p>
+              <span className="flex items-center">
+                <Link href="/stanze/finanze/aggiungi?tipo=budget" className="min-h-9 px-2 font-medium text-accent">
+                  Modifica
+                </Link>
+                <ActionButton action={deleteBudgetAction.bind(null, overall.id)} label="Rimuovi il budget del mese" confirmLabel="Rimuovi?" className="min-h-9 px-2 text-xs">
+                  ×
+                </ActionButton>
+              </span>
+            </div>
           </div>
-        ) : null}
+        ) : (
+          <Link href="/stanze/finanze/aggiungi?tipo=budget" className="text-sm font-medium text-accent">
+            Imposta un budget del mese
+          </Link>
+        )}
         {byCategory.length ? (
           <ul className="flex flex-col gap-2">
             {byCategory.slice(0, 6).map((c) => {

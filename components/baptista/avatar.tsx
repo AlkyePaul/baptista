@@ -9,17 +9,19 @@ import {
   type Expression,
 } from "@/lib/baptista/expressions";
 
+/** Intrinsic size hint for <Image>; the rendered size is always `--baptista-avatar-size`. */
+const INTRINSIC = 44;
+
 /**
  * Baptista's face (B-1, B-6): fades in when he enters; a change of expression is a cross-fade
  * (the new face fades in over the old one), never a cut; the confirmation gets a small bow.
+ * Same size everywhere (`--baptista-avatar-size` in globals.css).
  */
 export function BaptistaAvatar({
   expression,
-  size = 56,
   enter = true,
 }: {
   expression: Expression;
-  size?: number;
   enter?: boolean;
 }) {
   const [shown, setShown] = useState(expression);
@@ -39,10 +41,10 @@ export function BaptistaAvatar({
   const img = (e: Expression, className?: string) => (
     <Image
       key={e}
-      src={expressionSrc(e, size > 96 ? 384 : 192)}
+      src={expressionSrc(e, 192)}
       alt=""
-      width={size}
-      height={size}
+      width={INTRINSIC}
+      height={INTRINSIC}
       unoptimized
       className={cx(
         "absolute inset-0 h-full bg-white w-full rounded-full border border-border object-contain",
@@ -56,10 +58,9 @@ export function BaptistaAvatar({
       role="img"
       aria-label={EXPRESSION_ALT[shown]}
       className={cx(
-        "relative block shrink-0",
+        "relative block size-(--baptista-avatar-size) shrink-0",
         enter && "baptista-enter bg-white",
       )}
-      style={{ width: size, height: size }}
     >
       <span
         className={cx(
