@@ -99,10 +99,10 @@ begin
       'manual', 'Uovo grandissimo XL (Europa)', 66.0);
     -- Egg whites / yolks
     perform baptista.ensure_food(hid, 'Albume medio (Europa)', null, null, 'dairy', 'fridge',
-      round(52.0 / 33.0 * 100, 2), round(11.0 / 33.0 * 100, 2), round(0.7 / 33.0 * 100, 2), round(0.2 / 33.0 * 100, 2),
+      round(52.0 * 33.0 / 100.0 / 33.0 * 100, 2), round(11.0 * 33.0 / 100.0 / 33.0 * 100, 2), round(0.7 * 33.0 / 100.0 / 33.0 * 100, 2), round(0.2 * 33.0 / 100.0 / 33.0 * 100, 2),
       'manual', 'Albume medio (Europa)', 33.0);
     perform baptista.ensure_food(hid, 'Tuorlo medio (Europa)', null, null, 'dairy', 'fridge',
-      round(322.0 / 17.0 * 100, 2), round(16.0 / 17.0 * 100, 2), round(3.6 / 17.0 * 100, 2), round(27.0 / 17.0 * 100, 2),
+      round(322.0 * 17.0 / 100.0 / 17.0 * 100, 2), round(16.0 * 17.0 / 100.0 / 17.0 * 100, 2), round(3.6 * 17.0 / 100.0 / 17.0 * 100, 2), round(27.0 * 17.0 / 100.0 / 17.0 * 100, 2),
       'manual', 'Tuorlo medio (Europa)', 17.0);
     -- Bread slices
     perform baptista.ensure_food(hid, 'Fetta di pane in cassetta', null, null, 'bakery', 'pantry',
@@ -189,7 +189,7 @@ begin
     perform baptista.ensure_food(hid, 'Mandorla sgusciata', null, null, 'other', 'pantry',
       round(7.0 / 1.2 * 100, 2), round(0.3 / 1.2 * 100, 2), round(0.2 / 1.2 * 100, 2), round(0.6 / 1.2 * 100, 2),
       'manual', 'Mandorla sgusciata', 1.2);
-    perform baptista.ensure_food(hid, 'Cucchiaio di olio extravergine', null, null, 'condiment', 'pantry',
+    perform baptista.ensure_food(hid, 'Cucchiaio di olio extravergine', null, null, 'other', 'pantry',
       round(108.0 / 12.0 * 100, 2), round(0.0 / 12.0 * 100, 2), round(0.0 / 12.0 * 100, 2), round(12.0 / 12.0 * 100, 2),
       'manual', 'Cucchiaio di olio extravergine', 12.0);
   end loop;
