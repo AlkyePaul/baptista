@@ -52,7 +52,7 @@ create policy looks_delete on baptista.looks for delete to authenticated
 
 revoke all on baptista.looks from public, anon, authenticated;
 grant select, delete on baptista.looks to authenticated;
-grant insert (household_id, visibility, title, notes, preview_path, tags, seasons, formality, status),
+grant insert (id, household_id, visibility, title, notes, preview_path, tags, seasons, formality, status),
       update (visibility, title, notes, preview_path, tags, seasons, formality, status)
   on baptista.looks to authenticated;
 grant all on baptista.looks to service_role;

@@ -22,10 +22,10 @@ export const updateMealSchema = mealSchema.extend({ version: versionField });
 
 export const mealItemSchema = z.object({
   food_id: z.uuid({ error: "Scegli un alimento." }),
-  grams: decimal("Grammi", { min: 0, max: 5000, decimals: 1 }).optional().transform((v) => v ?? 0),
+  grams: decimal("Grammi", { min: 1, max: 3000, decimals: 1 }),
 });
 
-export const gramsSchema = z.object({ grams: decimal("Grammi", { min: 0, max: 5000, decimals: 1 }) });
+export const gramsSchema = z.object({ grams: decimal("Grammi", { min: 1, max: 3000, decimals: 1 }) });
 
 export async function createMeal(ctx: ExecutionContext, input: z.infer<typeof mealSchema>) {
   const { data, error } = await ctx.supabase

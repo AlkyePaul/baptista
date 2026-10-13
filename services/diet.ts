@@ -27,7 +27,7 @@ export const foodEntrySchema = z.object({
   eaten_on: civilDate(),
   slot,
   food_id: z.uuid({ error: "Scegli un alimento." }),
-  grams: decimal("Grammi", { exclusiveMin: true, max: 10000, decimals: 1 }),
+  grams: decimal("Grammi", { min: 1, max: 3000, decimals: 1 }),
 });
 
 export const mealEntrySchema = z.object({

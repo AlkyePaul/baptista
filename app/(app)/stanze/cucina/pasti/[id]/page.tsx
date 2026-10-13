@@ -81,7 +81,10 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
                           <input type="hidden" name="portion_weight_g" value={item.food.portion_weight_g!} />
                           <input
                             name="quantity"
-                            inputMode="decimal"
+                            type="number"
+                            min={1}
+                            max={99}
+                            step={1}
                             defaultValue={unitValue!}
                             aria-label={`Quantità di ${item.food.name}`}
                             className="min-h-10 w-20 rounded-lg border border-border bg-surface px-2 text-right"
@@ -120,7 +123,7 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
             <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium">+ Aggiungi alimento</summary>
             <div className="border-t border-border p-4">
               <ActionForm action={addMealItemAction.bind(null, meal.id)}>
-                <FoodEntryForm gramsHint="0 se non conta (spezie, aglio…)" />
+                <FoodEntryForm />
                 <SubmitButton>Aggiungi</SubmitButton>
               </ActionForm>
             </div>

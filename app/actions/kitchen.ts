@@ -159,23 +159,39 @@ export async function updateMealAction(mealId: string, _: ActionState, formData:
   return run(() => meals.updateMeal(ctx, id(mealId), parsed.data), "Salvato.");
 }
 
+const unitQtySchema = z.object({ quantity: decimal("Quantità", { min: 1, max: 99, decimals: 0 }) });
+
+/** Resolve portion_weight_g × quantity → grams, or null when the food is gram-based. */
+function resolveUnitGrams(formData: FormData) {
+  const raw = formData.get("portion_weight_g");
+  const pw = raw ? Number(raw) : null;
+  if (!pw || !Number.isFinite(pw)) return null;
+  const parsed = parseForm(unitQtySchema, formData);
+  if (!parsed.ok) return parsed;
+  return { ok: true as const, grams: Math.round(parsed.data.quantity * pw * 10) / 10 };
+}
+
 export async function addMealItemAction(mealId: string, _: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = parseForm(meals.mealItemSchema, formData);
-  if (!parsed.ok) return parsed.state;
+  const unit = resolveUnitGrams(formData);
+  if (unit && !unit.ok) return unit.state;
+  const foodParsed = parseForm(z.object({ food_id: z.uuid({ error: "Scegli un alimento." }) }), formData);
+  if (!foodParsed.ok) return foodParsed.state;
+  if (unit) {
+    const ctx = await requireExecutionContext();
+    return run(() => meals.addMealItem(ctx, id(mealId), { food_id: foodParsed.data.food_id, grams: unit.grams }));
+  }
+  const gramsParsed = parseForm(meals.gramsSchema, formData);
+  if (!gramsParsed.ok) return gramsParsed.state;
   const ctx = await requireExecutionContext();
-  return run(() => meals.addMealItem(ctx, id(mealId), parsed.data));
+  return run(() => meals.addMealItem(ctx, id(mealId), { food_id: foodParsed.data.food_id, grams: gramsParsed.data.grams }));
 }
 
 export async function setMealItemGramsAction(itemId: string, _: ActionState, formData: FormData): Promise<ActionState> {
-  const portionWeightRaw = formData.get("portion_weight_g");
-  const portionWeight = portionWeightRaw ? Number(portionWeightRaw) : null;
-  if (portionWeight) {
-    // Unit input: quantity * portion_weight_g = grams
-    const qtyParsed = parseForm(z.object({ quantity: decimal("Quantità", { min: 0, max: 5000, decimals: 2 }) }), formData);
-    if (!qtyParsed.ok) return qtyParsed.state;
-    const grams = Math.round(qtyParsed.data.quantity * portionWeight * 10) / 10;
+  const unit = resolveUnitGrams(formData);
+  if (unit && !unit.ok) return unit.state;
+  if (unit) {
     const ctx = await requireExecutionContext();
-    return run(() => meals.setMealItemGrams(ctx, id(itemId), grams));
+    return run(() => meals.setMealItemGrams(ctx, id(itemId), unit.grams));
   }
   const parsed = parseForm(meals.gramsSchema, formData);
   if (!parsed.ok) return parsed.state;
@@ -198,6 +214,14 @@ export async function addQuickEntryAction(_: ActionState, formData: FormData): P
 }
 
 export async function addFoodEntryAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  const unit = resolveUnitGrams(formData);
+  if (unit && !unit.ok) return unit.state;
+  if (unit) {
+    const parsed = parseForm(diet.foodEntrySchema.omit({ grams: true }), formData);
+    if (!parsed.ok) return parsed.state;
+    const ctx = await requireExecutionContext();
+    return attempt(() => diet.addFoodEntry(ctx, { ...parsed.data, grams: unit.grams }), "Aggiunto al diario.");
+  }
   const parsed = parseForm(diet.foodEntrySchema, formData);
   if (!parsed.ok) return parsed.state;
   const ctx = await requireExecutionContext();
