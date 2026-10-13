@@ -91,7 +91,7 @@ export async function addMealEntry(ctx: ExecutionContext, input: z.infer<typeof 
 export async function listDay(ctx: ExecutionContext, day: string): Promise<DietEntry[]> {
   const { data, error } = await ctx.supabase
     .from("diet_entries")
-    .select("id, eaten_on, slot, label, grams, kcal, protein_g, carbs_g, fat_g, meal_id, created_at")
+    .select("id, eaten_on, slot, label, grams, kcal, protein_g, carbs_g, fat_g, meal_id, schedule_id, created_at")
     .eq("household_id", ctx.household.id)
     .eq("owner_user_id", ctx.user.id)
     .eq("eaten_on", day)

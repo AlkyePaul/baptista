@@ -59,13 +59,13 @@ export const ROOMS: Record<RoomId, Room> = {
     id: "cucina",
     label: "Cucina",
     icon: "cutlery",
-    description: "Dispensa, lista della spesa, ricettario e diario",
+    description: "Dispensa, lista della spesa, ricettario e pasti",
     available: true,
     // D25: expiries live inside the Dispensa; the third slot is the diet / calorie counter.
     nav: [
       { href: "/stanze/cucina/dispensa", label: "Dispensa", icon: "pantry" },
       { href: "/stanze/cucina/aggiungi", label: "Aggiungi", icon: "add" },
-      { href: "/stanze/cucina/dieta", label: "Dieta", icon: "diet" },
+      { href: "/stanze/cucina/pasti", label: "Pasti", icon: "diet" },
     ],
   },
   finanze: {

@@ -5,7 +5,7 @@ import { removeBackground, type BgRemovalProgress } from "@/lib/background-remov
 import { normalizeGarment } from "@/lib/image-normalize";
 import { buttonClass, cx, ProgressBar } from "@/components/ui";
 
-type PipelineState = "processing" | "review" | "error";
+type PipelineState = "idle" | "processing" | "review" | "error";
 
 type Props = {
   /** The original photo blob to process. */
@@ -19,7 +19,7 @@ type Props = {
 };
 
 export function BgRemovalPipeline({ originalBlob, originalUrl, onComplete, onChangePhoto }: Props) {
-  const [state, setState] = useState<PipelineState>("processing");
+  const [state, setState] = useState<PipelineState>("idle");
   const [progress, setProgress] = useState<BgRemovalProgress>({ phase: "download", progress: 0, label: "Avvio…" });
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -44,15 +44,36 @@ export function BgRemovalPipeline({ originalBlob, originalUrl, onComplete, onCha
     }
   }, [originalBlob]);
 
+  // Start processing on mount; cleanup blob URLs on unmount.
   useEffect(() => {
-    processImage();
-    return () => {
-      if (processedUrl) URL.revokeObjectURL(processedUrl);
-    };
+    let cancelled = false;
+    (async () => {
+      try {
+        const bgRemoved = await removeBackground(originalBlob, (p) => { if (!cancelled) setProgress(p); });
+        if (cancelled) return;
+        const normalized = await normalizeGarment(bgRemoved);
+        if (cancelled) return;
+        processedBlobRef.current = normalized;
+        const url = URL.createObjectURL(normalized);
+        setProcessedUrl(url);
+        setState("review");
+      } catch (error) {
+        if (cancelled) return;
+        console.error("[baptista] bg removal failed:", error);
+        setErrorMessage(error instanceof Error ? error.message : "Errore sconosciuto.");
+        setState("error");
+      }
+    })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
-  if (state === "processing") {
+  // Cleanup blob URLs on unmount.
+  useEffect(() => () => {
+    if (processedUrl) URL.revokeObjectURL(processedUrl);
+  }, [processedUrl]);
+
+  if (state === "idle" || state === "processing") {
     return (
       <div className="flex flex-col gap-3">
         <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl border border-border bg-surface">

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Icon } from "@/components/icons";
-import { Card } from "@/components/ui";
 import { CLOTHING_TYPES } from "@/lib/wardrobe";
 
 export const metadata: Metadata = { title: "Aggiungi capo" };

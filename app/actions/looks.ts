@@ -7,7 +7,7 @@ import { run } from "@/lib/actions";
 import { toActionState, type ActionState } from "@/lib/errors";
 import { requireExecutionContext } from "@/lib/households/context";
 import { uuidSchema } from "@/lib/households/permissions";
-import { parseForm, versionField } from "@/services/shared";
+import { parseForm } from "@/services/shared";
 import * as looks from "@/services/looks";
 
 const id = (value: string) => uuidSchema.parse(value);

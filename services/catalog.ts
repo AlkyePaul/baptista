@@ -8,7 +8,7 @@ import type { ExecutionContext } from "@/lib/households/context";
 import type { FoodFacts } from "@/lib/openfoodfacts-parse";
 import { nameKey, storageFor } from "@/lib/shopping";
 import { nutritionFields } from "@/services/food";
-import { optionalText, requiredText, versionField } from "@/services/shared";
+import { optionalDecimal, optionalText, requiredText, versionField } from "@/services/shared";
 
 /**
  * Household food catalog (D31): every food in the pantry, on the list, in a recipe or a meal is
@@ -26,10 +26,11 @@ export function normaliseFood(row: Record<string, unknown>): Food {
     protein_100g: numberOrNull(row.protein_100g),
     carbs_100g: numberOrNull(row.carbs_100g),
     fat_100g: numberOrNull(row.fat_100g),
+    portion_weight_g: numberOrNull(row.portion_weight_g),
   };
 }
 
-export const FOOD_SELECT = "id, household_id, name, brand, barcode, category, default_storage, kcal_100g, protein_100g, carbs_100g, fat_100g, nutrition_source, staple, version, created_at";
+export const FOOD_SELECT = "id, household_id, name, brand, barcode, category, default_storage, kcal_100g, protein_100g, carbs_100g, fat_100g, nutrition_source, staple, portion_label, portion_weight_g, version, created_at";
 
 const foodFields = {
   name: requiredText(120, "Scrivi il nome dell'alimento."),
@@ -43,6 +44,8 @@ const foodFields = {
   category: z.enum(ids(FOOD_CATEGORIES), { error: "Scegli una categoria." }),
   default_storage: z.enum(ids(STORAGES)).optional(),
   ...nutritionFields,
+  portion_label: optionalText(80),
+  portion_weight_g: optionalDecimal("Peso porzione", { min: 0.1, max: 5000, decimals: 1 }),
 };
 
 /** «Nuovo alimento»: typed by hand (nutrition optional). */
@@ -89,6 +92,8 @@ type EnsureInput = {
   carbs_100g?: number | null;
   fat_100g?: number | null;
   nutrition_source?: "manual" | "openfoodfacts" | null;
+  portion_label?: string | null;
+  portion_weight_g?: number | null;
 };
 
 /** Find by barcode, else by name + brand, else create (database procedure, RLS applies). */
@@ -105,6 +110,8 @@ export async function ensureFood(ctx: ExecutionContext, input: EnsureInput): Pro
     p_carbs: input.carbs_100g ?? null,
     p_fat: input.fat_100g ?? null,
     p_source: input.nutrition_source ?? null,
+    p_portion_label: input.portion_label ?? null,
+    p_portion_weight_g: input.portion_weight_g ?? null,
   });
   throwIfDbError(error);
   if (!data) throw new DomainError("unknown");

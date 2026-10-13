@@ -1,26 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { addFoodEntryAction, addMealEntryAction, addQuickEntryAction, createMealAction, deleteDietEntryAction, setKcalTargetAction } from "@/app/actions/kitchen";
+import { addFoodEntryAction, addMealEntryAction, addQuickEntryAction, confirmScheduleAction, createMealAction, deleteDietEntryAction, setKcalTargetAction } from "@/app/actions/kitchen";
 import { ActionButton, ActionForm, Field, SelectField, SubmitButton, VisibilityField } from "@/components/forms";
-import { FoodPicker } from "@/components/food-picker";
+import { FoodEntryForm } from "@/components/food-entry-form";
 import { MacroLine } from "@/components/kitchen";
 import { Modal, Tabs } from "@/components/modal";
 import { ProgressRing } from "@/components/progress-ring";
 import { buttonClass, Card, cx, EmptyState, PrivateMark, Section } from "@/components/ui";
-import { addDays, formatLongDay, isCivilDate, localDate, localHour, relativeDay } from "@/lib/dates";
+import { addDays, formatLongDay, isCivilDate, isoWeekday, localDate, localHour, relativeDay } from "@/lib/dates";
 import { formatItalianNumber } from "@/lib/goals";
 import { requireExecutionContext } from "@/lib/households/context";
 import { diaryTotals, mealTotals, slotForHour, SLOTS, targetProgress, type Slot } from "@/lib/nutrition";
 import { getKcalTarget, listDay } from "@/services/diet";
 import { listMealItems, listMeals } from "@/services/meals";
+import { listActiveSchedules } from "@/services/schedules";
 
-export const metadata: Metadata = { title: "Dieta" };
+export const metadata: Metadata = { title: "Pasti" };
 
 const RING = "#3f9d8c";
 const OVER = "#c4553f";
 
 /** Personal calorie diary (D25): always private, values are snapshots of what was eaten. */
-export default async function DietPage({ searchParams }: PageProps<"/stanze/cucina/dieta">) {
+export default async function DietPage({ searchParams }: PageProps<"/stanze/cucina/pasti">) {
   const ctx = await requireExecutionContext();
   const params = await searchParams;
   const now = new Date();
@@ -28,7 +29,8 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
   const today = localDate(now, tz);
   const day = typeof params.giorno === "string" && isCivilDate(params.giorno) && params.giorno <= today ? params.giorno : today;
 
-  const [entries, target, meals] = await Promise.all([listDay(ctx, day), getKcalTarget(ctx), listMeals(ctx)]);
+  const wday = isoWeekday(day);
+  const [entries, target, meals, activeSchedules] = await Promise.all([listDay(ctx, day), getKcalTarget(ctx), listMeals(ctx), listActiveSchedules(ctx, wday)]);
   const mealItems = await listMealItems(ctx, meals.map((m) => m.id));
   const mealKcal = new Map(meals.map((m) => [m.id, mealTotals(mealItems.filter((i) => i.meal_id === m.id)).kcal]));
   const totals = diaryTotals(entries);
@@ -36,12 +38,15 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
   const over = progress.left !== null && progress.left < 0;
   const defaultSlot: Slot = day === today ? slotForHour(localHour(now, tz)) : "lunch";
   const slotField = <SelectField label="Pasto" name="slot" defaultValue={defaultSlot} options={SLOTS.map((s) => ({ value: s.id, label: s.label }))} />;
+  // Filter out schedules that have already been confirmed for this day (have entries with matching schedule_id)
+  const confirmedScheduleIds = new Set(entries.filter((e) => e.schedule_id).map((e) => e.schedule_id));
+  const pendingSchedules = activeSchedules.filter((s) => !confirmedScheduleIds.has(s.id));
 
   return (
     <>
       <header className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
-          <Link href={`/stanze/cucina/dieta?giorno=${addDays(day, -1)}`} className={cx(buttonClass.ghost, "size-11 px-0")} aria-label="Giorno precedente">
+          <Link href={`/stanze/cucina/pasti?giorno=${addDays(day, -1)}`} className={cx(buttonClass.ghost, "size-11 px-0")} aria-label="Giorno precedente">
             ‹
           </Link>
           <div className="flex flex-col items-center">
@@ -49,7 +54,7 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
             <p className="text-sm text-muted first-letter:uppercase">{formatLongDay(day)}</p>
           </div>
           {day < today ? (
-            <Link href={`/stanze/cucina/dieta?giorno=${addDays(day, 1)}`} className={cx(buttonClass.ghost, "size-11 px-0")} aria-label="Giorno successivo">
+            <Link href={`/stanze/cucina/pasti?giorno=${addDays(day, 1)}`} className={cx(buttonClass.ghost, "size-11 px-0")} aria-label="Giorno successivo">
               ›
             </Link>
           ) : (
@@ -81,6 +86,22 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
         </div>
       </Card>
 
+      {pendingSchedules.length ? (
+        <div className="flex flex-col gap-2">
+          {pendingSchedules.map((s) => (
+            <Card key={s.id} className="flex items-center gap-3 p-3">
+              <span className="flex flex-1 flex-col">
+                <span className="text-sm font-medium">{SLOTS.find((sl) => sl.id === s.slot)?.label}: {s.meal.title}</span>
+                <span className="text-xs text-muted">Pasto ricorrente</span>
+              </span>
+              <ActionButton action={confirmScheduleAction.bind(null, s.id, day, s.slot)} label={`Aggiungi ${s.meal.title}`} className="min-h-10 px-3 text-sm font-medium text-accent">
+                Aggiungi
+              </ActionButton>
+            </Card>
+          ))}
+        </div>
+      ) : null}
+
       <Modal trigger="+ Aggiungi al diario" title="Cosa hai mangiato?">
         <Tabs
           tabs={[
@@ -90,11 +111,8 @@ export default async function DietPage({ searchParams }: PageProps<"/stanze/cuci
               content: (
                 <ActionForm action={addFoodEntryAction}>
                   <input type="hidden" name="eaten_on" value={day} />
-                  <FoodPicker />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Grammi" name="grams" inputMode="decimal" placeholder="100" />
-                    {slotField}
-                  </div>
+                  <FoodEntryForm />
+                  {slotField}
                   <SubmitButton>Aggiungi</SubmitButton>
                 </ActionForm>
               ),

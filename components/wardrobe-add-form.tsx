@@ -4,7 +4,6 @@ import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 import { BgRemovalPipeline } from "@/components/bg-removal-pipeline";
 import { SubmitButton } from "@/components/forms";
 import { Icon } from "@/components/icons";
-import { PhotoPicker } from "@/components/photo-picker";
 import { buttonClass, cx } from "@/components/ui";
 import { WardrobeFields } from "@/components/wardrobe";
 import { isBgRemovalAvailable } from "@/lib/background-removal";
@@ -50,8 +49,6 @@ export function WardrobeAddForm({ type, expenseId, expenseInfo }: Props) {
   const [processedBlob, setProcessedBlob] = useState<Blob | null>(null);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  const processedInputRef = useRef<HTMLInputElement>(null);
 
   const bgAvailable = isBgRemovalAvailable();
 

@@ -34,7 +34,7 @@ export default async function AppLayout({
           >
             <BaptistaAvatar expression="suggestion" enter={false} />
             <span className="text-2xl font-bold tracking-tight text-ink">
-              baptista
+              Baptista
             </span>
           </Link>
           <div className="flex items-center gap-2">

@@ -63,7 +63,6 @@ export function RoomPill({ selected }: { selected: RoomId }) {
         )}
       >
         <Icon name={room.icon} className="size-5" />
-        <span className="max-w-24 truncate">{room.label}</span>
         <svg aria-hidden viewBox="0 0 20 20" className={cx("size-4 transition-transform", open && "rotate-180")}>
           <path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

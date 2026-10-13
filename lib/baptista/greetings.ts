@@ -82,7 +82,7 @@ export function kitchenGreeting(meals: number, kcal: number, target: number | nu
     return { expression: "thoughtful", text: `${recorded} È ancora poco: se hai mangiato altro, ricordati di inserirlo.` };
   }
   if (!target) {
-    return { expression: "suggestion", text: `${recorded} Imposta un obiettivo di calorie nella Dieta e ti dirò come stai andando.` };
+    return { expression: "suggestion", text: `${recorded} Imposta un obiettivo di calorie nei Pasti e ti dirò come stai andando.` };
   }
   const share = kcal / target;
   const left = Math.round(target - kcal);

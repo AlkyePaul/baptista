@@ -36,18 +36,9 @@ const ITEM_SIZE = 180; // Base draw size for items
 
 export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingTitle, existingItems }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [items, setItems] = useState<CanvasItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
-  const [pickerCategory, setPickerCategory] = useState<string>("top");
-  const [title, setTitle] = useState(existingTitle ?? "");
-  const dragRef = useRef<{ id: string; startX: number; startY: number; itemX: number; itemY: number } | null>(null);
-  const pinchRef = useRef<{ id: string; startDist: number; startScale: number; startAngle: number; startRot: number } | null>(null);
-
-  // Load existing items on mount
-  useEffect(() => {
-    if (!existingItems?.length) return;
-    const loaded: CanvasItem[] = existingItems.map((li) => {
+  const [items, setItems] = useState<CanvasItem[]>(() => {
+    if (!existingItems?.length) return [];
+    return existingItems.map((li) => {
       const wi = wardrobeItems.find((w) => w.id === li.wardrobe_item_id);
       return {
         id: li.wardrobe_item_id,
@@ -61,13 +52,32 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
         type: wi?.type ?? "other",
       };
     });
-    setItems(loaded);
-    // Load images
-    for (const item of loaded) {
-      loadImage(item.id);
+  });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerCategory, setPickerCategory] = useState<string>("top");
+  const [title, setTitle] = useState(existingTitle ?? "");
+  const dragRef = useRef<{ id: string; startX: number; startY: number; itemX: number; itemY: number } | null>(null);
+  const pinchRef = useRef<{ id: string; startDist: number; startScale: number; startAngle: number; startRot: number } | null>(null);
+  const imagesLoadedRef = useRef(false);
+
+  // Load images for pre-existing items on mount (external system: Image network fetch).
+  useEffect(() => {
+    if (imagesLoadedRef.current || !existingItems?.length) return;
+    imagesLoadedRef.current = true;
+    for (const li of existingItems) {
+      const wi = wardrobeItems.find((w) => w.id === li.wardrobe_item_id);
+      if (!wi) continue;
+      const url = (wi.processed_path && urls.get(wi.processed_path)) || (wi.thumb_path && urls.get(wi.thumb_path));
+      if (!url) continue;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        setItems((prev) => prev.map((it) => (it.id === li.wardrobe_item_id ? { ...it, image: img } : it)));
+      };
+      img.src = url;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [existingItems, wardrobeItems, urls]);
 
   const loadImage = useCallback(
     (wardrobeItemId: string) => {
@@ -175,7 +185,6 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     (e: React.PointerEvent) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
 
       const hit = hitTest(e.clientX, e.clientY);
       setSelectedId(hit);
@@ -327,7 +336,7 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
       if (preview) formData.set("preview", new File([preview], "preview.jpg", { type: "image/jpeg" }));
 
       // Serialize item placements
-      const placements = items.map((it, i) => ({
+      const placements = items.map((it) => ({
         wardrobe_item_id: it.id,
         x: Math.round(it.x * 1000) / 1000,
         y: Math.round(it.y * 1000) / 1000,

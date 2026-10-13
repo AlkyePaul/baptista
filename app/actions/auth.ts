@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { AuthError } from "next-auth";
 import { z } from "zod";
 import type { ActionState } from "@/lib/errors";
 import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from "@/auth";
@@ -20,11 +19,8 @@ export async function signIn(_: ActionState, formData: FormData): Promise<Action
       email: parsed.data.email,
       redirect: false,
     });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { ok: false, message: "Email non riconosciuta." };
-    }
-    throw error;
+  } catch {
+    return { ok: false, message: "Email non riconosciuta." };
   }
 
   redirect("/");

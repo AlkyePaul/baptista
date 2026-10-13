@@ -54,7 +54,7 @@ export async function KitchenRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
       <div className="grid grid-cols-3 gap-2">
         <Shortcut href="/stanze/cucina/aggiungi" icon="add" label="Alimento" />
         <Shortcut href="/stanze/cucina/dispensa" icon="pantry" label="Dispensa" />
-        <Shortcut href="/stanze/cucina/dieta" icon="diet" label="Dieta" />
+        <Shortcut href="/stanze/cucina/pasti" icon="diet" label="Pasti" />
       </div>
 
       <Section title="Ricettario" id="ricettario" action={<NewRecipe />}>
@@ -79,8 +79,8 @@ export async function KitchenRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
         </Link>
       </Section>
 
-      <Section title="Oggi a tavola" action={<TextLink href="/stanze/cucina/dieta">Diario</TextLink>}>
-        <Link href="/stanze/cucina/dieta" className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4">
+      <Section title="Oggi a tavola" action={<TextLink href="/stanze/cucina/pasti">Diario</TextLink>}>
+        <Link href="/stanze/cucina/pasti" className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4">
           <ProgressRing percent={progress.percent} color="#3f9d8c" label={`${kcal} kcal oggi`}>
             <span className="text-sm font-semibold">{formatItalianNumber(kcal)}</span>
           </ProgressRing>

@@ -11,7 +11,8 @@ import * as diet from "@/services/diet";
 import * as food from "@/services/food";
 import * as meals from "@/services/meals";
 import * as recipes from "@/services/recipes";
-import { deleteRecord, parseForm } from "@/services/shared";
+import { decimal, deleteRecord, parseForm } from "@/services/shared";
+import * as schedules from "@/services/schedules";
 import * as shopping from "@/services/shopping";
 
 const id = (value: string) => uuidSchema.parse(value);
@@ -166,6 +167,16 @@ export async function addMealItemAction(mealId: string, _: ActionState, formData
 }
 
 export async function setMealItemGramsAction(itemId: string, _: ActionState, formData: FormData): Promise<ActionState> {
+  const portionWeightRaw = formData.get("portion_weight_g");
+  const portionWeight = portionWeightRaw ? Number(portionWeightRaw) : null;
+  if (portionWeight) {
+    // Unit input: quantity * portion_weight_g = grams
+    const qtyParsed = parseForm(z.object({ quantity: decimal("Quantità", { min: 0, max: 5000, decimals: 2 }) }), formData);
+    if (!qtyParsed.ok) return qtyParsed.state;
+    const grams = Math.round(qtyParsed.data.quantity * portionWeight * 10) / 10;
+    const ctx = await requireExecutionContext();
+    return run(() => meals.setMealItemGrams(ctx, id(itemId), grams));
+  }
   const parsed = parseForm(meals.gramsSchema, formData);
   if (!parsed.ok) return parsed.state;
   const ctx = await requireExecutionContext();
@@ -212,11 +223,30 @@ export async function deleteDietEntryAction(entryId: string): Promise<ActionStat
   return run(() => deleteRecord(ctx, "diet_entries", id(entryId)));
 }
 
+// Schedules (recurring meals) ----------------------------------------------------------------
+
+export async function createScheduleAction(mealId: string, _: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = parseForm(schedules.scheduleSchema, formData);
+  if (!parsed.ok) return parsed.state;
+  const ctx = await requireExecutionContext();
+  return run(() => schedules.createSchedule(ctx, { ...parsed.data, meal_id: id(mealId) }), "Programmato.");
+}
+
+export async function deleteScheduleAction(scheduleId: string): Promise<ActionState> {
+  const ctx = await requireExecutionContext();
+  return run(() => schedules.deleteSchedule(ctx, id(scheduleId)));
+}
+
+export async function confirmScheduleAction(scheduleId: string, day: string, slot: string): Promise<ActionState> {
+  const ctx = await requireExecutionContext();
+  return attempt(() => schedules.confirmSchedule(ctx, id(scheduleId), day, slot), "Aggiunto al diario.");
+}
+
 // Delete -------------------------------------------------------------------------------------
 
 const DELETE_TARGETS = {
   food_items: "/stanze/cucina/dispensa",
-  meals: "/stanze/cucina/dieta#pasti",
+  meals: "/stanze/cucina/pasti#pasti",
   recipes: "/stanze/cucina/ricette",
 } as const;
 

@@ -4,14 +4,17 @@ import {
   addMealEntryAction,
   addMealItemAction,
   addMealRecipeAction,
+  createScheduleAction,
   deleteKitchenRecordAction,
+  deleteScheduleAction,
   removeMealItemAction,
   setMealItemGramsAction,
   updateMealAction,
 } from "@/app/actions/kitchen";
-import { FoodPicker } from "@/components/food-picker";
+import { FoodEntryForm } from "@/components/food-entry-form";
 import { ActionButton, ActionForm, Field, SelectField, SubmitButton, VisibilityField } from "@/components/forms";
 import { MacroLine } from "@/components/kitchen";
+import { WeekdayPicker } from "@/components/weekday-picker";
 import { Card, EmptyState, PageHeader, Section, TextLink } from "@/components/ui";
 import type { Meal } from "@/lib/db/types";
 import { localDate, localHour } from "@/lib/dates";
@@ -20,9 +23,12 @@ import { requireExecutionContext } from "@/lib/households/context";
 import { mealTotals, portion, slotForHour, SLOTS } from "@/lib/nutrition";
 import { listMealItems, MAX_MEAL_ITEMS } from "@/services/meals";
 import { listRecipes } from "@/services/recipes";
+import { listMealSchedules } from "@/services/schedules";
 import { getRecord } from "@/services/shared";
 
 export const metadata: Metadata = { title: "Pasto" };
+
+const WEEKDAY_LABELS: Record<number, string> = { 1: "Lun", 2: "Mar", 3: "Mer", 4: "Gio", 5: "Ven", 6: "Sab", 7: "Dom" };
 
 /**
  * A meal (D31) = catalog foods with grams, for calories and macros. A recipe can be added: its
@@ -33,7 +39,7 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
   const ctx = await requireExecutionContext();
   const meal = await getRecord<Meal>(ctx, "meals", id);
   if (!meal) notFound();
-  const [items, recipes] = await Promise.all([listMealItems(ctx, [meal.id]), listRecipes(ctx)]);
+  const [items, recipes, mealSchedules] = await Promise.all([listMealItems(ctx, [meal.id]), listRecipes(ctx), listMealSchedules(ctx, meal.id)]);
   const now = new Date();
   const tz = ctx.household.timezone;
   const totals = mealTotals(items);
@@ -41,7 +47,7 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
 
   return (
     <>
-      <TextLink href="/stanze/cucina/dieta#pasti">← Dieta</TextLink>
+      <TextLink href="/stanze/cucina/pasti#pasti">← Pasti</TextLink>
       <PageHeader title={meal.title} />
 
       <Card className="flex flex-col gap-2 p-4">
@@ -61,6 +67,8 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
             <ul className="divide-y divide-border">
               {items.map((item) => {
                 const kcal = item.food.kcal_100g === null ? null : portion({ ...item.food, kcal_100g: item.food.kcal_100g }, item.grams).kcal;
+                const hasUnit = item.food.portion_label && item.food.portion_weight_g;
+                const unitValue = hasUnit ? formatItalianNumber(item.grams / item.food.portion_weight_g!, false) : null;
                 return (
                   <li key={item.id} className="flex items-center gap-2 py-2 pr-1 pl-4">
                     <span className="flex min-w-0 flex-1 flex-col">
@@ -68,14 +76,30 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
                       <span className="text-xs text-muted">{kcal === null ? "kcal sconosciute" : `${formatItalianNumber(kcal)} kcal`}</span>
                     </span>
                     <ActionForm action={setMealItemGramsAction.bind(null, item.id)} resetOnSuccess={false} className="flex-row items-center gap-1">
-                      <input
-                        name="grams"
-                        inputMode="decimal"
-                        defaultValue={formatItalianNumber(item.grams, false)}
-                        aria-label={`Grammi di ${item.food.name}`}
-                        className="min-h-10 w-20 rounded-lg border border-border bg-surface px-2 text-right"
-                      />
-                      <span className="text-sm text-muted">g</span>
+                      {hasUnit ? (
+                        <>
+                          <input type="hidden" name="portion_weight_g" value={item.food.portion_weight_g!} />
+                          <input
+                            name="quantity"
+                            inputMode="decimal"
+                            defaultValue={unitValue!}
+                            aria-label={`Quantità di ${item.food.name}`}
+                            className="min-h-10 w-20 rounded-lg border border-border bg-surface px-2 text-right"
+                          />
+                          <span className="max-w-16 truncate text-xs text-muted" title={item.food.portion_label!}>×</span>
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            name="grams"
+                            inputMode="decimal"
+                            defaultValue={formatItalianNumber(item.grams, false)}
+                            aria-label={`Grammi di ${item.food.name}`}
+                            className="min-h-10 w-20 rounded-lg border border-border bg-surface px-2 text-right"
+                          />
+                          <span className="text-sm text-muted">g</span>
+                        </>
+                      )}
                       <SubmitButton variant="ghost" pendingLabel="…" className="min-h-10 px-2">
                         ✓
                       </SubmitButton>
@@ -96,8 +120,7 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
             <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium">+ Aggiungi alimento</summary>
             <div className="border-t border-border p-4">
               <ActionForm action={addMealItemAction.bind(null, meal.id)}>
-                <FoodPicker />
-                <Field label="Grammi" name="grams" inputMode="decimal" placeholder="100" hint="0 se non conta (spezie, aglio…)" />
+                <FoodEntryForm gramsHint="0 se non conta (spezie, aglio…)" />
                 <SubmitButton>Aggiungi</SubmitButton>
               </ActionForm>
             </div>
@@ -132,6 +155,33 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
           </Card>
         </Section>
       ) : null}
+
+      <details className="rounded-2xl border border-border bg-surface">
+        <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium">Rendi ricorrente</summary>
+        <div className="border-t border-border p-4">
+          {mealSchedules.length ? (
+            <div className="flex flex-col gap-3">
+              {mealSchedules.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-3">
+                  <span className="text-sm">
+                    {SLOTS.find((sl) => sl.id === s.slot)?.label} · {s.weekdays.sort().map((d) => WEEKDAY_LABELS[d]).join(", ")}
+                  </span>
+                  <ActionButton action={deleteScheduleAction.bind(null, s.id)} label="Rimuovi programmazione" confirmLabel="Rimuovi?" className="min-h-10 px-2 text-xs">
+                    ×
+                  </ActionButton>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <ActionForm action={createScheduleAction.bind(null, meal.id)} successMessage>
+              <input type="hidden" name="meal_id" value={meal.id} />
+              <SelectField label="Pasto" name="slot" options={SLOTS.map((s) => ({ value: s.id, label: s.label }))} />
+              <WeekdayPicker />
+              <SubmitButton>Programma</SubmitButton>
+            </ActionForm>
+          )}
+        </div>
+      </details>
 
       <details className="rounded-2xl border border-border bg-surface">
         <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium">Dettagli</summary>

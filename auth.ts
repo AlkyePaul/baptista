@@ -12,20 +12,13 @@ declare module "next-auth" {
   }
 }
 
-declare module "@auth/core/jwt" {
-  interface JWT {
-    userId: string;
-    email: string;
-  }
-}
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: { email: { label: "Email", type: "email" } },
       async authorize(credentials) {
         const email =
-          typeof credentials.email === "string"
+          typeof credentials?.email === "string"
             ? credentials.email.trim().toLowerCase()
             : "";
         if (!email) return null;
@@ -53,13 +46,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.userId = (user as { userId: string }).userId;
-        token.email = user.email!;
+        token.email = user.email ?? "";
       }
       return token;
     },
     session({ session, token }) {
-      session.user.userId = token.userId;
-      session.user.email = token.email;
+      session.user.userId = token.userId as string;
+      session.user.email = token.email as string;
       return session;
     },
   },

@@ -70,7 +70,8 @@ export type Table =
   | "expenses"
   | "finance_goals"
   | "wardrobe_items"
-  | "looks";
+  | "looks"
+  | "meal_schedules";
 
 /** Optimistic update scoped to the current household; 0 rows means changed, gone or forbidden. */
 export async function updateVersioned(
