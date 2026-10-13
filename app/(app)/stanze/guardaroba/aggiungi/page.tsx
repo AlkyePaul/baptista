@@ -17,7 +17,7 @@ export default async function AddClothingPage({ searchParams }: PageProps<"/stan
         <h1 className="text-3xl font-semibold tracking-tight">Cosa vuoi aggiungere?</h1>
         <p className="text-muted">Scegli la categoria del capo.</p>
       </header>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-3">
         {CLOTHING_TYPES.map((t) => (
           <Link
             key={t.id}

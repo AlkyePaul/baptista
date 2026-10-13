@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { cx } from "@/components/ui";
 import type { LookItem, WardrobeItem } from "@/lib/db/types";
 import { initialActionState, type ActionState } from "@/lib/errors";
 import { CLOTHING_TYPES, CLOTHING_TYPE_ICON, DEFAULT_PLACEMENT } from "@/lib/wardrobe";
-import { createLookAction, deleteLookAction, saveLookItemsAction } from "@/app/actions/looks";
+import { createLookAction, saveLookItemsAction } from "@/app/actions/looks";
 
 type CanvasItem = {
   id: string; // wardrobe_item_id
@@ -33,7 +33,7 @@ type Props = {
 
 const CANVAS_W = 800;
 const CANVAS_H = 1050;
-const ITEM_SIZE = 180; // Base draw size for items
+const ITEM_SIZE = 280; // Base draw size for items
 
 function CtrlBtn({ onClick, title, danger, children }: { onClick: () => void; title: string; danger?: boolean; children: React.ReactNode }) {
   return (
@@ -73,7 +73,6 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerCategory, setDrawerCategory] = useState<string | null>(null);
   const [title, setTitle] = useState(existingTitle ?? "");
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const dragRef = useRef<{ id: string; startX: number; startY: number; itemX: number; itemY: number } | null>(null);
   const pinchRef = useRef<{ id: string; startDist: number; startScale: number; startAngle: number; startRot: number } | null>(null);
   const imagesLoadedRef = useRef(false);
@@ -368,6 +367,38 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     [items, loadImage],
   );
 
+  const randomize = useCallback(() => {
+    // Pick one random active item per available category, replace canvas entirely
+    const byType = new Map<string, WardrobeItem[]>();
+    for (const wi of wardrobeItems) {
+      if (wi.status !== "active") continue;
+      const list = byType.get(wi.type) ?? [];
+      list.push(wi);
+      byType.set(wi.type, list);
+    }
+    const picked: CanvasItem[] = [];
+    let z = 0;
+    for (const [type, pool] of byType) {
+      const wi = pool[Math.floor(Math.random() * pool.length)];
+      const placement = DEFAULT_PLACEMENT[type] ?? DEFAULT_PLACEMENT.other;
+      picked.push({
+        id: wi.id,
+        x: placement.x,
+        y: placement.y,
+        scale: placement.scale,
+        rotation: 0,
+        zOrder: z++,
+        image: null,
+        name: wi.name,
+        type: wi.type,
+      });
+    }
+    setItems(picked);
+    setSelectedId(null);
+    setDrawerCategory(null);
+    for (const it of picked) loadImage(it.id);
+  }, [wardrobeItems, loadImage]);
+
   // Close drawer on ESC
   useEffect(() => {
     if (!drawerCategory) return;
@@ -391,6 +422,33 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
 
   const [saveState, saveAction] = useActionState(
     async (_: ActionState, formData: FormData) => {
+      // Clear selection so the blue dashed rect doesn't appear in the preview
+      setSelectedId(null);
+      // Redraw synchronously without selection indicator
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+          const sorted = [...items].sort((a, b) => a.zOrder - b.zOrder);
+          for (const item of sorted) {
+            const cx = item.x * CANVAS_W;
+            const cy = item.y * CANVAS_H;
+            const size = ITEM_SIZE * item.scale;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate((item.rotation * Math.PI) / 180);
+            if (item.image) {
+              const aspect = item.image.width / item.image.height;
+              const [w, h] = aspect > 1 ? [size, size / aspect] : [size * aspect, size];
+              ctx.drawImage(item.image, -w / 2, -h / 2, w, h);
+            }
+            ctx.restore();
+          }
+        }
+      }
       const preview = generatePreview();
       if (preview) formData.set("preview", new File([preview], "preview.jpg", { type: "image/jpeg" }));
 
@@ -414,13 +472,6 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     initialActionState,
   );
 
-  // Delete action (for existing looks)
-  const boundDeleteAction = useMemo(
-    () => (lookId ? deleteLookAction.bind(null, lookId) : async (s: ActionState) => s),
-    [lookId],
-  );
-  const [, deleteFormAction] = useActionState(boundDeleteAction, initialActionState);
-
   // Derived
   const availableCategories = CLOTHING_TYPES.filter((t) =>
     wardrobeItems.some((w) => w.type === t.id && w.status === "active" && !items.some((i) => i.id === w.id)),
@@ -436,45 +487,35 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Top bar */}
-      <div className="flex items-center gap-2 border-b border-border bg-surface px-3 pt-[env(safe-area-inset-top,0px)]">
-        <div className="flex items-center gap-2 py-2">
-          <Link
-            href="/stanze/guardaroba/look"
-            className="flex size-9 items-center justify-center rounded-lg text-muted transition hover:bg-foreground/[0.06]"
-            aria-label="Torna ai look"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-5" aria-hidden>
-              <path d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-        </div>
+      <div className="flex items-center gap-1.5 border-b border-border bg-surface px-2 py-1.5 pt-[calc(0.375rem+env(safe-area-inset-top,0px))]">
+        <Link
+          href="/stanze/guardaroba/look"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-foreground/[0.06]"
+          aria-label="Torna ai look"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-5" aria-hidden>
+            <path d="M15 19l-7-7 7-7" />
+          </svg>
+        </Link>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Nome del look"
-          className="min-h-10 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-muted"
+          className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-muted"
         />
-        {lookId && (
-          <form
-            action={deleteFormAction}
-            onSubmit={(e) => {
-              if (!deleteConfirm) {
-                e.preventDefault();
-                setDeleteConfirm(true);
-              }
-            }}
-          >
-            <button type="submit" className="rounded-lg px-2 py-1 text-xs text-danger transition hover:bg-danger/10">
-              {deleteConfirm ? "Conferma" : "Elimina"}
-            </button>
-          </form>
-        )}
-        <form action={saveAction}>
+        <button
+          type="button"
+          onClick={randomize}
+          className="shrink-0 rounded-md bg-violet-800 text-white  border border-border px-2 py-1 text-xs font-medium text-muted transition hover:bg-foreground/[0.06]"
+        >
+          Random
+        </button>
+        <form action={saveAction} className="shrink-0">
           <input type="hidden" name="visibility" value="household" />
           <button
             type="submit"
             disabled={!title.trim() || items.length === 0}
-            className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-on-accent transition disabled:opacity-40"
+            className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-on-accent transition disabled:opacity-40"
           >
             Salva
           </button>

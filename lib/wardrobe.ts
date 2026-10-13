@@ -12,7 +12,7 @@ export const CLOTHING_TYPES = [
   { id: "accessory", label: "Accessori" },
   { id: "sportswear", label: "Sport" },
   { id: "underwear", label: "Intimo" },
-  { id: "other", label: "Altro" },
+ 
 ] as const;
 export type ClothingType = (typeof CLOTHING_TYPES)[number]["id"];
 
