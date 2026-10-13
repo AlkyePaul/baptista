@@ -27,7 +27,8 @@ export type IconName =
   | "target"
   | "chart"
   | "camera"
-  | "search";
+  | "search"
+  | "outfit";
 
 export type NavItem = { href: string; label: string; icon: IconName };
 
@@ -90,6 +91,7 @@ export const ROOMS: Record<RoomId, Room> = {
     nav: [
       { href: "/stanze/guardaroba/capi", label: "Capi", icon: "hanger" },
       { href: "/stanze/guardaroba/aggiungi", label: "Aggiungi", icon: "add" },
+      { href: "/stanze/guardaroba/look", label: "Look", icon: "outfit" },
     ],
   },
 };

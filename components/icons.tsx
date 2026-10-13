@@ -136,6 +136,14 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="m20 20-4-4" />
     </>
   ),
+  outfit: (
+    <>
+      {/* top on hanger + bottom */}
+      <path d="M9 3h6M12 3v2" />
+      <path d="M7 5l-2 4h3v4h8V9h3l-2-4" />
+      <path d="M8 13v3l1 5h2.5l.5-3 .5 3H15l1-5v-3" />
+    </>
+  ),
 };
 
 export function Icon({ name, className = "size-6" }: { name: IconName; className?: string }) {

@@ -4,9 +4,9 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { requireUser, type SessionUser } from "@/lib/auth/session";
 import type { Household, MemberRole, Membership } from "@/lib/db/types";
-import { createClient } from "@/lib/supabase/server";
+import { createAuthenticatedClient } from "@/lib/supabase/server";
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+type SupabaseServerClient = Awaited<ReturnType<typeof createAuthenticatedClient>>;
 
 export type UserContext = {
   user: SessionUser;
@@ -17,7 +17,7 @@ export type UserContext = {
 
 /**
  * Server-side execution context for every household-scoped operation. The household is the
- * caller's active membership, which `baptista.app_users` assigns (D33); never taken from the client.
+ * caller's active membership, which `baptista.users` assigns; never taken from the client.
  */
 export type ExecutionContext = UserContext & {
   household: Household;
@@ -26,12 +26,15 @@ export type ExecutionContext = UserContext & {
 
 export const getUserContext = cache(async (): Promise<UserContext> => {
   const user = await requireUser();
-  const supabase = await createClient();
+  const supabase = await createAuthenticatedClient(user.id);
 
-  // Only accounts listed in baptista.app_users get a profile (D33). A shared-Auth session
-  // (e.g. a GuideApp account) alone grants nothing.
-  const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle();
-  if (!profile) redirect("/accesso-negato");
+  // Query baptista.users for display name and household info.
+  const { data: bu } = await supabase
+    .from("users")
+    .select("display_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (!bu) redirect("/accesso-negato");
 
   const { data: rows } = await supabase
     .from("household_members")
@@ -43,7 +46,7 @@ export const getUserContext = cache(async (): Promise<UserContext> => {
   return {
     user,
     supabase,
-    displayName: profile.display_name,
+    displayName: bu.display_name,
     memberships: ((rows ?? []) as unknown as Membership[]).filter((m) => m.household),
   };
 });

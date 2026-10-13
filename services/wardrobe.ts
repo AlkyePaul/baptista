@@ -7,7 +7,7 @@ import type { WardrobeItem } from "@/lib/db/types";
 import { DomainError, throwIfDbError } from "@/lib/errors";
 import type { ExecutionContext } from "@/lib/households/context";
 import { visibilitySchema } from "@/lib/households/permissions";
-import { EXTENSION, MAX_PIXELS, type ImageMime } from "@/lib/image-check";
+import { EXTENSION, MAX_PIXELS, MAX_UPLOAD_BYTES, sniffImage, type ImageMime } from "@/lib/image-check";
 import { BAPTISTA_BUCKETS } from "@/lib/supabase/schema";
 import { CLOTHING_TYPES, COLORS, FORMALITIES, parseTags, PATTERNS, SEASONS } from "@/lib/wardrobe";
 import { checkImage } from "@/services/images";
@@ -66,9 +66,9 @@ export async function preparePhoto(file: File): Promise<PreparedPhoto> {
 }
 
 /** Uploads into <household>/<user>/<upload>/ with server-generated names; never overwrites. */
-async function uploadPhoto(ctx: ExecutionContext, photo: PreparedPhoto) {
-  const folder = `${ctx.household.id}/${ctx.user.id}/${randomUUID()}`;
-  const paths = { original_path: `${folder}/original.${EXTENSION[photo.mime]}`, thumb_path: `${folder}/thumb.webp` };
+async function uploadPhoto(ctx: ExecutionContext, photo: PreparedPhoto, folder?: string) {
+  const dir = folder ?? `${ctx.household.id}/${ctx.user.id}/${randomUUID()}`;
+  const paths = { original_path: `${dir}/original.${EXTENSION[photo.mime]}`, thumb_path: `${dir}/thumb.webp` };
   const bucket = ctx.supabase.storage.from(BUCKET);
   const first = await bucket.upload(paths.original_path, photo.original, { contentType: photo.mime, upsert: false });
   if (first.error) throw new DomainError("upload_failed");
@@ -85,18 +85,75 @@ async function removePhotos(ctx: ExecutionContext, paths: Array<string | null>) 
   if (list.length) await ctx.supabase.storage.from(BUCKET).remove(list);
 }
 
+// Processed (background-removed) image --------------------------------------------------------
+
+type PreparedProcessed = { data: Uint8Array };
+
+/**
+ * Validates a processed PNG from the client: real PNG bytes, size ≤ 10 MB, pixel dimensions.
+ * No thumbnail is generated — the existing thumb from the original photo suffices.
+ */
+export async function prepareProcessed(file: File): Promise<PreparedProcessed> {
+  if (file.size === 0) throw new DomainError("image_invalid");
+  if (file.size > MAX_UPLOAD_BYTES) throw new DomainError("image_too_large");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const kind = sniffImage(bytes);
+  if (kind !== "image/png") throw new DomainError("image_invalid");
+  let width = 0;
+  let height = 0;
+  try {
+    ({ width = 0, height = 0 } = await sharp(bytes, { limitInputPixels: false }).metadata());
+  } catch {
+    throw new DomainError("image_invalid");
+  }
+  if (!width || !height) throw new DomainError("image_invalid");
+  if (width * height > MAX_PIXELS) throw new DomainError("image_too_large");
+  return { data: bytes };
+}
+
+/** Uploads processed PNG into the same folder as the original. */
+async function uploadProcessed(ctx: ExecutionContext, folder: string, processed: PreparedProcessed): Promise<string | null> {
+  const path = `${folder}/processed.png`;
+  const bucket = ctx.supabase.storage.from(BUCKET);
+  const { error } = await bucket.upload(path, processed.data, { contentType: "image/png", upsert: false });
+  if (error) {
+    console.error("[baptista] processed upload failed, continuing without it", error.message);
+    return null;
+  }
+  return path;
+}
+
 // CRUD ---------------------------------------------------------------------------------------
 
 /** Upload first, then the row; if the row fails the files are removed (no orphan promises). */
-export async function createWardrobeItem(ctx: ExecutionContext, input: z.infer<typeof wardrobeSchema>, photo: PreparedPhoto | null) {
-  const paths = photo ? await uploadPhoto(ctx, photo) : { original_path: null, thumb_path: null };
+export async function createWardrobeItem(
+  ctx: ExecutionContext,
+  input: z.infer<typeof wardrobeSchema>,
+  photo: PreparedPhoto | null,
+  processed: PreparedProcessed | null = null,
+) {
+  const folder = photo ? `${ctx.household.id}/${ctx.user.id}/${randomUUID()}` : null;
+  const paths = photo && folder
+    ? await uploadPhoto(ctx, photo, folder)
+    : { original_path: null, thumb_path: null };
+  // Upload processed PNG to the same folder (non-fatal).
+  let processed_path: string | null = null;
+  if (processed && folder) {
+    processed_path = await uploadProcessed(ctx, folder, processed);
+  }
   const { data, error } = await ctx.supabase
     .from("wardrobe_items")
-    .insert({ household_id: ctx.household.id, ...input, ...(input.expense_id ? { acquisition: "purchased" } : {}), ...paths })
+    .insert({
+      household_id: ctx.household.id,
+      ...input,
+      ...(input.expense_id ? { acquisition: "purchased" } : {}),
+      ...paths,
+      ...(processed_path ? { processed_path } : {}),
+    })
     .select("id")
     .single();
   if (error) {
-    await removePhotos(ctx, [paths.original_path, paths.thumb_path]);
+    await removePhotos(ctx, [paths.original_path, paths.thumb_path, processed_path]);
     throwIfDbError(error);
   }
   return (data as { id: string }).id;
@@ -108,17 +165,28 @@ export async function updateWardrobeItem(ctx: ExecutionContext, id: string, inpu
 }
 
 /** New photo: upload, point the item at it, then remove the old files. */
-export async function replacePhoto(ctx: ExecutionContext, id: string, version: number, photo: PreparedPhoto) {
+export async function replacePhoto(
+  ctx: ExecutionContext,
+  id: string,
+  version: number,
+  photo: PreparedPhoto,
+  processed: PreparedProcessed | null = null,
+) {
   const item = await getRecord<WardrobeItem>(ctx, "wardrobe_items", id);
   if (!item) throw new DomainError("not_found");
-  const paths = await uploadPhoto(ctx, photo);
+  const folder = `${ctx.household.id}/${ctx.user.id}/${randomUUID()}`;
+  const paths = await uploadPhoto(ctx, photo, folder);
+  let processed_path: string | null = null;
+  if (processed) {
+    processed_path = await uploadProcessed(ctx, folder, processed);
+  }
   try {
-    await updateVersioned(ctx, "wardrobe_items", id, version, paths);
+    await updateVersioned(ctx, "wardrobe_items", id, version, { ...paths, processed_path });
   } catch (error) {
-    await removePhotos(ctx, [paths.original_path, paths.thumb_path]);
+    await removePhotos(ctx, [paths.original_path, paths.thumb_path, processed_path]);
     throw error;
   }
-  await removePhotos(ctx, [item.original_path, item.thumb_path]);
+  await removePhotos(ctx, [item.original_path, item.thumb_path, item.processed_path]);
 }
 
 export async function setWardrobeStatus(ctx: ExecutionContext, id: string, version: number, status: "active" | "archived") {

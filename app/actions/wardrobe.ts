@@ -19,6 +19,12 @@ function photoFrom(formData: FormData): File | null {
   return file instanceof File && file.size > 0 ? file : null;
 }
 
+/** The optional processed PNG from background removal. */
+function processedFrom(formData: FormData): File | null {
+  const file = formData.get("processed");
+  return file instanceof File && file.size > 0 ? file : null;
+}
+
 export async function createWardrobeItemAction(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = parseForm(wardrobe.wardrobeSchema, formData);
   if (!parsed.ok) return parsed.state;
@@ -27,7 +33,9 @@ export async function createWardrobeItemAction(_: ActionState, formData: FormDat
   try {
     const file = photoFrom(formData);
     const photo = file ? await wardrobe.preparePhoto(file) : null;
-    itemId = await wardrobe.createWardrobeItem(ctx, parsed.data, photo);
+    const processedFile = processedFrom(formData);
+    const processed = processedFile ? await wardrobe.prepareProcessed(processedFile) : null;
+    itemId = await wardrobe.createWardrobeItem(ctx, parsed.data, photo, processed);
   } catch (error) {
     return toActionState(error);
   }
@@ -48,7 +56,9 @@ export async function replacePhotoAction(itemId: string, _: ActionState, formDat
   const file = photoFrom(formData);
   if (!file) return { ok: false, message: "Scegli una foto." };
   const ctx = await requireExecutionContext();
-  return run(async () => wardrobe.replacePhoto(ctx, id(itemId), parsed.data.version, await wardrobe.preparePhoto(file)), "Foto aggiornata.");
+  const processedFile = processedFrom(formData);
+  const processed = processedFile ? await wardrobe.prepareProcessed(processedFile) : null;
+  return run(async () => wardrobe.replacePhoto(ctx, id(itemId), parsed.data.version, await wardrobe.preparePhoto(file), processed), "Foto aggiornata.");
 }
 
 export async function setWardrobeStatusAction(itemId: string, itemVersion: number, status: string): Promise<ActionState> {

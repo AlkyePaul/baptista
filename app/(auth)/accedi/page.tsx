@@ -13,7 +13,6 @@ export default async function SignInPage() {
       <h1 className="text-3xl font-semibold tracking-tight">Accedi</h1>
       <ActionForm action={signIn} resetOnSuccess={false}>
         <Field label="Email" name="email" type="email" autoComplete="email" inputMode="email" required />
-        <Field label="Password" name="password" type="password" autoComplete="current-password" required />
         <SubmitButton pendingLabel="Accesso…">Accedi</SubmitButton>
       </ActionForm>
     </div>

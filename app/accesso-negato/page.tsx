@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Accesso non abilitato" };
 
-/** Signed-in account that is not (or no longer) listed in baptista.app_users (D33). */
+/** Signed-in account that is not listed in baptista.users. */
 export default async function AccessDeniedPage() {
   const user = await requireUser();
   return (
@@ -14,8 +14,7 @@ export default async function AccessDeniedPage() {
         <p className="text-sm font-medium tracking-wide text-muted uppercase">Baptista</p>
         <h1 className="text-3xl font-semibold tracking-tight">Account non abilitato</h1>
         <p className="text-muted">
-          L&apos;account <span className="font-medium text-foreground">{user.email}</span> non è abilitato a Baptista. Chiedi a
-          chi gestisce la casa di aggiungerti.
+          L&apos;account <span className="font-medium text-foreground">{user.email}</span> non è abilitato a Baptista.
         </p>
       </header>
       <form action={signOut}>

@@ -61,11 +61,15 @@ function ColorGroup({ legend, name, defaults, multiple }: { legend: string; name
 }
 
 /** Manual classification (D28): every field is the user's own statement, nothing is inferred. */
-export function WardrobeFields({ item }: { item?: WardrobeItem }) {
+export function WardrobeFields({ item, presetType }: { item?: WardrobeItem; presetType?: string }) {
   return (
     <>
       <Field label="Nome" name="name" placeholder="Es. Giacca di jeans" defaultValue={item?.name} required />
-      <ChipGroup legend="Tipo" name="type" options={CLOTHING_TYPES} defaults={[item?.type ?? "top"]} />
+      {presetType ? (
+        <input type="hidden" name="type" value={presetType} />
+      ) : (
+        <ChipGroup legend="Tipo" name="type" options={CLOTHING_TYPES} defaults={[item?.type ?? "top"]} />
+      )}
       <ColorGroup legend="Colore principale" name="primary_color" defaults={item?.primary_color ? [item.primary_color] : []} />
       <details className="rounded-2xl border border-border" open={Boolean(item?.secondary_colors.length)}>
         <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm font-medium">Altri colori</summary>

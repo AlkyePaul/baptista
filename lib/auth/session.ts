@@ -2,20 +2,17 @@ import "server-only";
 
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { auth } from "@/auth";
 
-export type SessionUser = { id: string; email: string | null };
+export type SessionUser = { id: string; email: string };
 
 /**
- * Verified identity for this request. `getClaims()` validates the JWT; the raw cookie session
- * is never trusted as proof of identity (docs/architecture/SECURITY.md).
+ * Verified identity for this request via NextAuth JWT session.
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getClaims();
-  const sub = data?.claims?.sub;
-  if (error || !sub) return null;
-  return { id: sub, email: typeof data.claims.email === "string" ? data.claims.email : null };
+  const session = await auth();
+  if (!session?.user?.userId) return null;
+  return { id: session.user.userId, email: session.user.email };
 });
 
 export async function requireUser(): Promise<SessionUser> {

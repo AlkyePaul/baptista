@@ -133,6 +133,10 @@ export type Food = {
   nutrition_source: "manual" | "openfoodfacts" | null;
   /** C8: null = never decided, true = abituale, false = «non chiederlo più». */
   staple: boolean | null;
+  /** Unit foods: name of one portion (e.g. "Uovo medio M"), null for weight-based foods. */
+  portion_label: string | null;
+  /** Weight in grams of one portion; null when portion_label is null. */
+  portion_weight_g: number | null;
   version: number;
   created_at: string;
 };
@@ -190,7 +194,21 @@ export type DietEntry = {
   carbs_g: number | null;
   fat_g: number | null;
   meal_id: string | null;
+  schedule_id: string | null;
   created_at: string;
+};
+
+export type MealSchedule = {
+  id: string;
+  household_id: string;
+  owner_user_id: string | null;
+  meal_id: string;
+  slot: "breakfast" | "lunch" | "dinner" | "snack";
+  weekdays: number[];
+  active: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
 };
 
 // Lista della spesa (Phase 04.1) -----------------------------------------------------------
@@ -258,6 +276,29 @@ export type WardrobeItem = RecordBase & {
   /** A-2: how the item arrived; `expense_id` links the purchase in Finanze. */
   acquisition: "unknown" | "purchased" | "gift" | "owned_before";
   expense_id: string | null;
+};
+
+// Look Builder (Phase 05) -------------------------------------------------------------------
+
+export type Look = RecordBase & {
+  title: string;
+  notes: string | null;
+  preview_path: string | null;
+  tags: string[];
+  seasons: string[];
+  formality: string | null;
+  status: "active" | "archived";
+};
+
+export type LookItem = {
+  id: string;
+  look_id: string;
+  wardrobe_item_id: string;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  z_order: number;
 };
 
 // Finanze (D26) ------------------------------------------------------------------------------

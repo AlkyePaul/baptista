@@ -69,7 +69,8 @@ export type Table =
   | "diet_entries"
   | "expenses"
   | "finance_goals"
-  | "wardrobe_items";
+  | "wardrobe_items"
+  | "looks";
 
 /** Optimistic update scoped to the current household; 0 rows means changed, gone or forbidden. */
 export async function updateVersioned(

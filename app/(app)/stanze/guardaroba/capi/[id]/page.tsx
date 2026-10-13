@@ -6,6 +6,7 @@ import { Icon } from "@/components/icons";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Badge, Card, PageHeader, PrivateMark, TextLink } from "@/components/ui";
 import { Swatch, WardrobeFields } from "@/components/wardrobe";
+import { WardrobePhotoDisplay } from "@/components/wardrobe-photo-display";
 import type { WardrobeItem } from "@/lib/db/types";
 import { requireExecutionContext } from "@/lib/households/context";
 import { CLOTHING_TYPES, COLORS, FORMALITIES, PATTERNS, SEASONS } from "@/lib/wardrobe";
@@ -25,8 +26,10 @@ export default async function ClothingPage({ params }: PageProps<"/stanze/guarda
   const ctx = await requireExecutionContext();
   const item = await getRecord<WardrobeItem>(ctx, "wardrobe_items", id);
   if (!item) notFound();
-  const urls = await signedUrls(ctx, [item.original_path, item.thumb_path]);
-  const photo = (item.original_path && urls.get(item.original_path)) || (item.thumb_path && urls.get(item.thumb_path)) || null;
+  const urls = await signedUrls(ctx, [item.original_path, item.thumb_path, item.processed_path]);
+  const originalPhoto = (item.original_path && urls.get(item.original_path)) || (item.thumb_path && urls.get(item.thumb_path)) || null;
+  const processedPhoto = item.processed_path ? (urls.get(item.processed_path) ?? null) : null;
+  const photo = processedPhoto ?? originalPhoto;
   const isOwner = item.owner_user_id === ctx.user.id;
   const expense = await getLinkedExpense(ctx, item.expense_id);
   const today = localDate(new Date(), ctx.household.timezone);
@@ -54,14 +57,13 @@ export default async function ClothingPage({ params }: PageProps<"/stanze/guarda
       />
 
       <Card className="overflow-hidden">
-        <div className="flex aspect-[4/5] items-center justify-center bg-foreground/[0.03]">
-          {photo ? (
-            // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL of a private object
-            <img src={photo} alt={item.name} className="h-full w-full object-contain" />
-          ) : (
+        {photo ? (
+          <WardrobePhotoDisplay originalUrl={originalPhoto} processedUrl={processedPhoto} alt={item.name} />
+        ) : (
+          <div className="flex aspect-[4/5] items-center justify-center bg-foreground/[0.03]">
             <Icon name="hanger" className="size-16 text-muted" />
-          )}
-        </div>
+          </div>
+        )}
         <div className="flex flex-col gap-2 p-4">
           <p className="text-sm text-muted">{facts.join(" · ")}</p>
           <div className="flex flex-wrap items-center gap-2">

@@ -8,7 +8,10 @@ import "server-only";
  * logged or returned to clients; only presence is reported.
  */
 export const SERVER_ENV_NAMES = [
-  // Phase 01+: privileged procedures/test fixtures only, never user requests.
+  // Auth: NextAuth session encryption and Supabase JWT minting.
+  "AUTH_SECRET",
+  "SUPABASE_JWT_SECRET",
+  // Supabase service-role key (admin operations, e.g. user lookup at login).
   "SUPABASE_SECRET_KEY",
   // Phase 04+: AI routing (docs/architecture/AGENT.md).
   "AI_GATEWAY_API_KEY",
