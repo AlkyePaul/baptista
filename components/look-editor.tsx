@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
-import { buttonClass, cx } from "@/components/ui";
+import { cx } from "@/components/ui";
 import type { LookItem, WardrobeItem } from "@/lib/db/types";
 import { initialActionState, type ActionState } from "@/lib/errors";
 import { CLOTHING_TYPES, CLOTHING_TYPE_ICON, DEFAULT_PLACEMENT } from "@/lib/wardrobe";
-import { createLookAction, saveLookItemsAction } from "@/app/actions/looks";
+import { createLookAction, deleteLookAction, saveLookItemsAction } from "@/app/actions/looks";
 
 type CanvasItem = {
   id: string; // wardrobe_item_id
@@ -30,9 +31,25 @@ type Props = {
   existingItems?: LookItem[];
 };
 
-const CANVAS_W = 600;
-const CANVAS_H = 800;
+const CANVAS_W = 800;
+const CANVAS_H = 1050;
 const ITEM_SIZE = 180; // Base draw size for items
+
+function CtrlBtn({ onClick, title, danger, children }: { onClick: () => void; title: string; danger?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={cx(
+        "flex size-9 items-center justify-center rounded-lg transition",
+        danger ? "text-danger hover:bg-danger/10" : "text-muted hover:bg-foreground/[0.06]",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingTitle, existingItems }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,9 +73,15 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerCategory, setDrawerCategory] = useState<string | null>(null);
   const [title, setTitle] = useState(existingTitle ?? "");
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const dragRef = useRef<{ id: string; startX: number; startY: number; itemX: number; itemY: number } | null>(null);
   const pinchRef = useRef<{ id: string; startDist: number; startScale: number; startAngle: number; startRot: number } | null>(null);
   const imagesLoadedRef = useRef(false);
+  // Refs for touch handlers (avoid stale closures in non-passive listeners)
+  const itemsRef = useRef(items);
+  const selectedIdRef = useRef(selectedId);
+  useEffect(() => { itemsRef.current = items; }, [items]);
+  useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
 
   // Load images for pre-existing items on mount (external system: Image network fetch).
   useEffect(() => {
@@ -179,9 +202,10 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     [items],
   );
 
-  // Mouse handlers
+  // Pointer handlers (single-finger drag)
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      if (dragRef.current) return; // already dragging (e.g. second finger)
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -206,19 +230,20 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!dragRef.current) return;
+      const drag = dragRef.current;
+      if (!drag) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       const scaleX = CANVAS_W / rect.width;
       const scaleY = CANVAS_H / rect.height;
-      const dx = (e.clientX - dragRef.current.startX) * scaleX / CANVAS_W;
-      const dy = (e.clientY - dragRef.current.startY) * scaleY / CANVAS_H;
+      const dx = (e.clientX - drag.startX) * scaleX / CANVAS_W;
+      const dy = (e.clientY - drag.startY) * scaleY / CANVAS_H;
 
       setItems((prev) =>
         prev.map((it) =>
-          it.id === dragRef.current!.id
-            ? { ...it, x: Math.max(0, Math.min(1, dragRef.current!.itemX + dx)), y: Math.max(0, Math.min(1, dragRef.current!.itemY + dy)) }
+          it.id === drag.id
+            ? { ...it, x: Math.max(0, Math.min(1, drag.itemX + dx)), y: Math.max(0, Math.min(1, drag.itemY + dy)) }
             : it,
         ),
       );
@@ -230,45 +255,55 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     dragRef.current = null;
   }, []);
 
-  // Touch handlers for pinch/rotate
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (e.touches.length === 2 && selectedId) {
-        const t1 = e.touches[0];
-        const t2 = e.touches[1];
-        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
-        const item = items.find((i) => i.id === selectedId);
-        if (item) {
-          pinchRef.current = { id: selectedId, startDist: dist, startScale: item.scale, startAngle: angle, startRot: item.rotation };
-        }
+  // Non-passive touch listeners for pinch/rotate (attached via DOM to avoid React passive default)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      e.preventDefault();
+      dragRef.current = null; // cancel any single-finger drag
+      const sid = selectedIdRef.current;
+      if (!sid) return;
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
+      const item = itemsRef.current.find((i) => i.id === sid);
+      if (item) {
+        pinchRef.current = { id: sid, startDist: dist, startScale: item.scale, startAngle: angle, startRot: item.rotation };
       }
-    },
-    [selectedId, items],
-  );
+    };
 
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      if (e.touches.length === 2 && pinchRef.current) {
-        e.preventDefault();
-        const t1 = e.touches[0];
-        const t2 = e.touches[1];
-        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
-        const scaleFactor = dist / pinchRef.current.startDist;
-        const newScale = Math.max(0.1, Math.min(3.0, pinchRef.current.startScale * scaleFactor));
-        const newRotation = pinchRef.current.startRot + (angle - pinchRef.current.startAngle);
+    const onTouchMove = (e: TouchEvent) => {
+      const pinch = pinchRef.current;
+      if (e.touches.length !== 2 || !pinch) return;
+      e.preventDefault();
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
+      const scaleFactor = dist / pinch.startDist;
+      const newScale = Math.max(0.1, Math.min(3.0, pinch.startScale * scaleFactor));
+      const newRotation = pinch.startRot + (angle - pinch.startAngle);
+      setItems((prev) =>
+        prev.map((it) => (it.id === pinch.id ? { ...it, scale: newScale, rotation: newRotation } : it)),
+      );
+    };
 
-        setItems((prev) =>
-          prev.map((it) => (it.id === pinchRef.current!.id ? { ...it, scale: newScale, rotation: newRotation } : it)),
-        );
-      }
-    },
-    [],
-  );
+    const onTouchEnd = () => {
+      pinchRef.current = null;
+    };
 
-  const handleTouchEnd = useCallback(() => {
-    pinchRef.current = null;
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd);
+    return () => {
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
+    };
   }, []);
 
   // Item actions
@@ -293,6 +328,22 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     setItems((prev) => prev.filter((it) => it.id !== selectedId));
     setSelectedId(null);
   }, [selectedId]);
+
+  const setItemScale = useCallback(
+    (value: number) => {
+      if (!selectedId) return;
+      setItems((prev) => prev.map((it) => (it.id === selectedId ? { ...it, scale: value } : it)));
+    },
+    [selectedId],
+  );
+
+  const adjustRotation = useCallback(
+    (degrees: number) => {
+      if (!selectedId) return;
+      setItems((prev) => prev.map((it) => (it.id === selectedId ? { ...it, rotation: it.rotation + degrees } : it)));
+    },
+    [selectedId],
+  );
 
   const addItem = useCallback(
     (wi: WardrobeItem) => {
@@ -340,11 +391,9 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
 
   const [saveState, saveAction] = useActionState(
     async (_: ActionState, formData: FormData) => {
-      // Generate preview
       const preview = generatePreview();
       if (preview) formData.set("preview", new File([preview], "preview.jpg", { type: "image/jpeg" }));
 
-      // Serialize item placements
       const placements = items.map((it) => ({
         wardrobe_item_id: it.id,
         x: Math.round(it.x * 1000) / 1000,
@@ -365,7 +414,14 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     initialActionState,
   );
 
-  // Categories with available items (active, not already on canvas)
+  // Delete action (for existing looks)
+  const boundDeleteAction = useMemo(
+    () => (lookId ? deleteLookAction.bind(null, lookId) : async (s: ActionState) => s),
+    [lookId],
+  );
+  const [, deleteFormAction] = useActionState(boundDeleteAction, initialActionState);
+
+  // Derived
   const availableCategories = CLOTHING_TYPES.filter((t) =>
     wardrobeItems.some((w) => w.type === t.id && w.status === "active" && !items.some((i) => i.id === w.id)),
   );
@@ -375,41 +431,81 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     : [];
 
   const drawerLabel = drawerCategory ? CLOTHING_TYPES.find((t) => t.id === drawerCategory)?.label ?? "" : "";
+  const selectedItem = selectedId ? items.find((i) => i.id === selectedId) : null;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Canvas + category sidebar */}
-      <div className="relative flex overflow-hidden rounded-2xl border border-border bg-white">
-        {/* Canvas */}
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      {/* Top bar */}
+      <div className="flex items-center gap-2 border-b border-border bg-surface px-3 pt-[env(safe-area-inset-top,0px)]">
+        <div className="flex items-center gap-2 py-2">
+          <Link
+            href="/stanze/guardaroba/look"
+            className="flex size-9 items-center justify-center rounded-lg text-muted transition hover:bg-foreground/[0.06]"
+            aria-label="Torna ai look"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-5" aria-hidden>
+              <path d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+        </div>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Nome del look"
+          className="min-h-10 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-muted"
+        />
+        {lookId && (
+          <form
+            action={deleteFormAction}
+            onSubmit={(e) => {
+              if (!deleteConfirm) {
+                e.preventDefault();
+                setDeleteConfirm(true);
+              }
+            }}
+          >
+            <button type="submit" className="rounded-lg px-2 py-1 text-xs text-danger transition hover:bg-danger/10">
+              {deleteConfirm ? "Conferma" : "Elimina"}
+            </button>
+          </form>
+        )}
+        <form action={saveAction}>
+          <input type="hidden" name="visibility" value="household" />
+          <button
+            type="submit"
+            disabled={!title.trim() || items.length === 0}
+            className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-on-accent transition disabled:opacity-40"
+          >
+            Salva
+          </button>
+        </form>
+      </div>
+
+      {/* Canvas + icon strip */}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {/* Canvas — full width */}
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
-          className="min-w-0 flex-1 touch-none"
+          className="h-full w-full touch-none"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
         />
 
-        {/* Category icon strip */}
-        {availableCategories.length > 0 && (
-          <div className="flex w-11 flex-col gap-1 overflow-y-auto border-l border-border bg-surface/50 p-1">
+        {/* Category icon strip — overlaid on right edge */}
+        {availableCategories.length > 0 && !drawerCategory && (
+          <div className="absolute bottom-0 right-0 top-0 z-10 flex w-11 flex-col gap-1 overflow-y-auto p-1 bg-gray-200">
             {availableCategories.map((t) => {
               const iconName = CLOTHING_TYPE_ICON[t.id];
-              const isOpen = drawerCategory === t.id;
               return (
                 <button
                   key={t.id}
                   type="button"
                   title={t.label}
-                  onClick={() => setDrawerCategory(isOpen ? null : t.id)}
-                  className={cx(
-                    "flex size-9 shrink-0 items-center justify-center rounded-lg transition",
-                    isOpen ? "bg-accent text-white" : "text-muted hover:bg-foreground/[0.06]",
-                  )}
+                  onClick={() => setDrawerCategory(t.id)}
+                  className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface text-muted backdrop-blur-sm transition hover:bg-surface"
                 >
                   <Icon name={iconName} className="size-5" />
                 </button>
@@ -423,14 +519,11 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
           <>
             {/* Backdrop */}
             <div
-              className="absolute inset-0 bg-black/30"
-              style={{ right: "2.75rem" }}
+              className="absolute inset-0 z-20 bg-black/30"
               onClick={() => setDrawerCategory(null)}
             />
             {/* Sliding panel */}
-            <div
-              className="absolute bottom-0 right-11 top-0 w-[70%] max-w-[280px] animate-[slide-in-right_200ms_ease-out] overflow-y-auto border-l border-border bg-surface"
-            >
+            <div className="absolute bottom-0 right-0 top-0 z-30 w-[70%] max-w-[290px] animate-[slide-in-right_200ms_ease-out] overflow-y-auto border-l border-border bg-surface">
               {/* Header */}
               <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-surface px-3 py-2">
                 <span className="text-sm font-medium">{drawerLabel}</span>
@@ -477,46 +570,65 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
         )}
       </div>
 
-      {/* Item controls */}
-      {selectedId ? (
-        <div className="flex gap-2">
-          <button type="button" className={cx(buttonClass.ghost, "flex-1 text-xs")} onClick={bringForward}>
-            Porta avanti
-          </button>
-          <button type="button" className={cx(buttonClass.ghost, "flex-1 text-xs")} onClick={sendBackward}>
-            Porta dietro
-          </button>
-          <button type="button" className={cx(buttonClass.danger, "flex-1 text-xs")} onClick={removeItem}>
-            Rimuovi
-          </button>
-        </div>
-      ) : null}
+      {/* Bottom controls */}
+      <div className="border-t border-border bg-surface px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+        {selectedItem ? (
+          <div className="flex items-center gap-1">
+            {/* Z-order */}
+            <CtrlBtn onClick={sendBackward} title="Porta dietro">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-4" aria-hidden>
+                <path d="M7 13l5 5 5-5M7 7l5 5 5-5" />
+              </svg>
+            </CtrlBtn>
+            <CtrlBtn onClick={bringForward} title="Porta avanti">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-4" aria-hidden>
+                <path d="M7 11l5-5 5 5M7 17l5-5 5 5" />
+              </svg>
+            </CtrlBtn>
 
-      {/* Save form */}
-      <form action={saveAction} className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="look-title" className="text-sm font-medium">Nome del look</label>
-          <input
-            id="look-title"
-            name="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Es. Outfit casual estivo"
-            required
-            className="min-h-12 w-full rounded-xl border border-border bg-surface px-4 text-base outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25"
-          />
-        </div>
-        <input type="hidden" name="visibility" value="household" />
-        <button type="submit" disabled={!title.trim() || items.length === 0} className={buttonClass.primary}>
-          Salva
-        </button>
+            {/* Scale slider */}
+            <input
+              type="range"
+              min={0.1}
+              max={3.0}
+              step={0.05}
+              value={selectedItem.scale}
+              onChange={(e) => setItemScale(Number(e.target.value))}
+              className="mx-1 flex-1 accent-[var(--accent)]"
+              aria-label="Scala"
+            />
+
+            {/* Rotate */}
+            <CtrlBtn onClick={() => adjustRotation(-15)} title="Ruota −15°">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-4" aria-hidden>
+                <path d="M3 12a9 9 0 1 0 9-9" />
+                <path d="M3 3v6h6" />
+              </svg>
+            </CtrlBtn>
+            <CtrlBtn onClick={() => adjustRotation(15)} title="Ruota +15°">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-4" aria-hidden>
+                <path d="M21 12a9 9 0 1 1-9-9" />
+                <path d="M21 3v6h-6" />
+              </svg>
+            </CtrlBtn>
+
+            {/* Remove */}
+            <CtrlBtn onClick={removeItem} title="Rimuovi" danger>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-4" aria-hidden>
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </CtrlBtn>
+          </div>
+        ) : (
+          <p className="py-1 text-center text-sm text-muted">Tocca un capo per selezionarlo</p>
+        )}
         {!saveState.ok && saveState.message ? (
-          <p role="alert" className="text-sm text-danger">{saveState.message}</p>
+          <p role="alert" className="mt-1 text-center text-sm text-danger">{saveState.message}</p>
         ) : null}
         {saveState.ok && saveState.message ? (
-          <p role="status" className="text-sm text-accent">{saveState.message}</p>
+          <p role="status" className="mt-1 text-center text-sm text-accent">{saveState.message}</p>
         ) : null}
-      </form>
+      </div>
     </div>
   );
 }

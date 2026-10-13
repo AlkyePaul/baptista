@@ -80,7 +80,57 @@ export async function normalizeGarment(pngBlob: Blob, canvasSize = 1024): Promis
   outCtx.drawImage(bitmap, bounds.left, bounds.top, cropW, cropH, dx, dy, drawW, drawH);
   bitmap.close();
 
+  // Enhance: lift shadows, boost brightness & saturation for a cleaner flat-lay look.
+  enhancePixels(outCtx, canvasSize, canvasSize);
+
   return new Promise<Blob>((resolve) => {
     outCanvas.toBlob((blob) => resolve(blob!), "image/png");
   });
+}
+
+/**
+ * Per-pixel enhancement applied to the normalized garment:
+ * 1. Shadow lift — raises dark tones (reduces wrinkle/fold shadows)
+ * 2. Brightness — subtle overall lift
+ * 3. Saturation — makes colours slightly more vivid
+ *
+ * Only touches pixels with alpha > 0; transparent background is untouched.
+ */
+function enhancePixels(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+
+  const SHADOW_LIFT = 28;     // max lift for pure-black pixels
+  const BRIGHTNESS  = 1.06;   // multiplicative brightness
+  const SAT_BOOST   = 1.18;   // saturation multiplier
+
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue; // skip transparent
+
+    let r = d[i], g = d[i + 1], b = d[i + 2];
+
+    // 1. Shadow lift: add more to darker values, almost nothing to bright ones.
+    //    curve: value += LIFT * (1 - value/255)^2
+    const rr = 1 - r / 255, gr = 1 - g / 255, br = 1 - b / 255;
+    r = r + SHADOW_LIFT * rr * rr;
+    g = g + SHADOW_LIFT * gr * gr;
+    b = b + SHADOW_LIFT * br * br;
+
+    // 2. Brightness
+    r *= BRIGHTNESS;
+    g *= BRIGHTNESS;
+    b *= BRIGHTNESS;
+
+    // 3. Saturation boost (luminance-preserving)
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    r = lum + (r - lum) * SAT_BOOST;
+    g = lum + (g - lum) * SAT_BOOST;
+    b = lum + (b - lum) * SAT_BOOST;
+
+    d[i]     = Math.min(255, Math.max(0, Math.round(r)));
+    d[i + 1] = Math.min(255, Math.max(0, Math.round(g)));
+    d[i + 2] = Math.min(255, Math.max(0, Math.round(b)));
+  }
+
+  ctx.putImageData(img, 0, 0);
 }

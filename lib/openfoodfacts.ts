@@ -13,14 +13,15 @@ export type { FoodFacts };
  */
 
 const BASE = "https://world.openfoodfacts.org";
+const SEARCH_BASE = "https://search.openfoodfacts.org";
 const TIMEOUT_MS = 8_000;
 const FIELDS = "code,product_name,product_name_it,brands,nutriments,categories_tags";
 const USER_AGENT = "Baptista/0.1 (prototipo domestico)";
 
-async function getJson(path: string): Promise<unknown> {
+async function getJson(url: string): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetch(`${BASE}${path}`, {
+    response = await fetch(url, {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       redirect: "error",
@@ -39,7 +40,7 @@ async function getJson(path: string): Promise<unknown> {
 }
 
 export async function lookupBarcode(barcode: string): Promise<FoodFacts[]> {
-  const data = (await getJson(`/api/v2/product/${encodeURIComponent(barcode)}.json?fields=${FIELDS}`)) as
+  const data = (await getJson(`${BASE}/api/v2/product/${encodeURIComponent(barcode)}.json?fields=${FIELDS}`)) as
     | { status?: number; product?: unknown }
     | null;
   if (!data || data.status !== 1) return [];
@@ -49,16 +50,12 @@ export async function lookupBarcode(barcode: string): Promise<FoodFacts[]> {
 
 export async function searchByName(query: string, limit = 8): Promise<FoodFacts[]> {
   const params = new URLSearchParams({
-    search_terms: query,
-    search_simple: "1",
-    action: "process",
-    json: "1",
+    q: query,
     page_size: String(limit * 2),
     fields: FIELDS,
-    lc: "it",
   });
-  const data = (await getJson(`/cgi/search.pl?${params}`)) as { products?: unknown[] } | null;
-  const results = (Array.isArray(data?.products) ? data.products : [])
+  const data = (await getJson(`${SEARCH_BASE}/search?${params}`)) as { hits?: unknown[] } | null;
+  const results = (Array.isArray(data?.hits) ? data.hits : [])
     .map(toFoodFacts)
     .filter((f): f is FoodFacts => f !== null && f.kcal_100g !== null);
   return results.slice(0, limit);

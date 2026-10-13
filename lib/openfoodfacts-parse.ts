@@ -20,7 +20,7 @@ const product = z.object({
   code: z.string().optional(),
   product_name: z.string().optional(),
   product_name_it: z.string().optional(),
-  brands: z.string().optional(),
+  brands: z.union([z.string(), z.array(z.string())]).optional(),
   nutriments: z.record(z.string(), z.unknown()).optional(),
   categories_tags: z.array(z.string()).optional().catch(undefined),
 });
@@ -44,7 +44,7 @@ export function toFoodFacts(raw: unknown): FoodFacts | null {
   return {
     barcode: code,
     name,
-    brand: p.brands?.split(",")[0]?.trim().slice(0, 80) || null,
+    brand: (Array.isArray(p.brands) ? p.brands[0] : p.brands?.split(",")[0])?.trim().slice(0, 80) || null,
     kcal_100g: kcal,
     protein_100g: bounded(n["proteins_100g"], 100),
     carbs_100g: bounded(n["carbohydrates_100g"], 100),
