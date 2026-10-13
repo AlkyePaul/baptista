@@ -277,6 +277,8 @@ export type Expense = RecordBase & {
   category_id: string | null;
   goal_id: string | null;
   receipt_intake_id: string | null;
+  /** Private receipt photo in `baptista-receipts` (phase 04, no extraction). */
+  receipt_path: string | null;
   notes: string | null;
 };
 

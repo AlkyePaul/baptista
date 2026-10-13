@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { addExpenseItemAction, deleteFinanceRecordAction, removeExpenseItemAction, updateExpenseAction } from "@/app/actions/finance";
+import {
+  addExpenseItemAction,
+  deleteFinanceRecordAction,
+  removeExpenseItemAction,
+  removeReceiptAction,
+  replaceReceiptAction,
+  updateExpenseAction,
+} from "@/app/actions/finance";
 import { ActionButton, ActionForm, Field, SubmitButton } from "@/components/forms";
 import { ExpenseFields, Money } from "@/components/finance";
+import { PhotoPicker } from "@/components/photo-picker";
 import { Card, PageHeader, Section, TextLink } from "@/components/ui";
 import type { Expense } from "@/lib/db/types";
 import { formatLongDay, localDate, monthOf } from "@/lib/dates";
@@ -10,6 +18,7 @@ import { formatItalianNumber } from "@/lib/goals";
 import { requireExecutionContext } from "@/lib/households/context";
 import { addAmounts } from "@/lib/money";
 import { listExpenseCategories, listExpenseItems, listFinanceGoals } from "@/services/finance";
+import { receiptUrl } from "@/services/receipts";
 import { getRecord } from "@/services/shared";
 
 export const metadata: Metadata = { title: "Spesa" };
@@ -19,7 +28,12 @@ export default async function ExpensePage({ params }: PageProps<"/stanze/finanze
   const ctx = await requireExecutionContext();
   const expense = await getRecord<Expense>(ctx, "expenses", id);
   if (!expense) notFound();
-  const [items, categories, goals] = await Promise.all([listExpenseItems(ctx, expense.id), listExpenseCategories(ctx), listFinanceGoals(ctx, true)]);
+  const [items, categories, goals, receipt] = await Promise.all([
+    listExpenseItems(ctx, expense.id),
+    listExpenseCategories(ctx),
+    listFinanceGoals(ctx, true),
+    receiptUrl(ctx, expense.receipt_path),
+  ]);
   const today = localDate(new Date(), ctx.household.timezone);
   const isOwner = expense.owner_user_id === ctx.user.id;
   const linesTotal = addAmounts(items.map((i) => i.line_total));
@@ -68,6 +82,37 @@ export default async function ExpensePage({ params }: PageProps<"/stanze/finanze
             +
           </SubmitButton>
         </ActionForm>
+      </Section>
+
+      <Section title="Scontrino">
+        {receipt ? (
+          <a href={receipt} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-2xl border border-border bg-surface">
+            {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL */}
+            <img src={receipt} alt={`Scontrino: ${expense.merchant ?? expense.description ?? "spesa"}`} className="max-h-96 w-full object-contain" />
+            <span className="block border-t border-border px-4 py-2 text-sm text-accent">Apri a tutto schermo</span>
+          </a>
+        ) : expense.receipt_path ? (
+          <p className="text-sm text-muted">Lo scontrino non è disponibile in questo momento.</p>
+        ) : (
+          <p className="text-sm text-muted">Nessuno scontrino allegato.</p>
+        )}
+        <details className="rounded-2xl border border-border bg-surface">
+          <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium">{expense.receipt_path ? "Cambia scontrino" : "Allega scontrino"}</summary>
+          <div className="border-t border-border p-4">
+            <ActionForm action={replaceReceiptAction.bind(null, expense.id)} successMessage>
+              <input type="hidden" name="version" value={expense.version} />
+              <PhotoPicker name="receipt" label="Scontrino" alt="Anteprima dello scontrino" hint="Resta privato come la spesa. Per ora è solo allegato, non viene letto." tall />
+              <SubmitButton pendingLabel="Carico lo scontrino…">Salva scontrino</SubmitButton>
+            </ActionForm>
+          </div>
+        </details>
+        {expense.receipt_path ? (
+          <div className="flex justify-end">
+            <ActionButton action={removeReceiptAction.bind(null, expense.id, expense.version)} confirmLabel="Conferma rimozione">
+              Rimuovi scontrino
+            </ActionButton>
+          </div>
+        ) : null}
       </Section>
 
       <details className="rounded-2xl border border-border bg-surface">

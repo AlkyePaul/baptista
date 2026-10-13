@@ -7,10 +7,17 @@ import { messageFor, type ActionState } from "@/lib/errors";
 import { requireExecutionContext } from "@/lib/households/context";
 import { uuidSchema } from "@/lib/households/permissions";
 import * as finance from "@/services/finance";
-import { deleteRecord, parseForm } from "@/services/shared";
+import * as receipts from "@/services/receipts";
+import { deleteRecord, parseForm, versionField } from "@/services/shared";
 
 const id = (value: string) => uuidSchema.parse(value);
 const version = (value: number) => z.number().int().positive().parse(value);
+
+/** The optional receipt field: an empty file input arrives as a 0-byte File. */
+function receiptFrom(formData: FormData): File | null {
+  const file = formData.get("receipt");
+  return file instanceof File && file.size > 0 ? file : null;
+}
 
 // Expenses -----------------------------------------------------------------------------------
 
@@ -18,7 +25,25 @@ export async function createExpenseAction(_: ActionState, formData: FormData): P
   const parsed = parseForm(finance.expenseSchema, formData);
   if (!parsed.ok) return parsed.state;
   const ctx = await requireExecutionContext();
-  return run(() => finance.createExpense(ctx, parsed.data), "Spesa registrata.");
+  const file = receiptFrom(formData);
+  return run(
+    async () => receipts.createExpenseWithReceipt(ctx, parsed.data, file ? await receipts.prepareReceipt(file) : null),
+    file ? "Spesa registrata con lo scontrino." : "Spesa registrata.",
+  );
+}
+
+export async function replaceReceiptAction(expenseId: string, _: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = parseForm(z.object({ version: versionField }), formData);
+  if (!parsed.ok) return parsed.state;
+  const file = receiptFrom(formData);
+  if (!file) return { ok: false, message: "Scegli la foto dello scontrino." };
+  const ctx = await requireExecutionContext();
+  return run(async () => receipts.replaceReceipt(ctx, id(expenseId), parsed.data.version, await receipts.prepareReceipt(file)), "Scontrino salvato.");
+}
+
+export async function removeReceiptAction(expenseId: string, expenseVersion: number): Promise<ActionState> {
+  const ctx = await requireExecutionContext();
+  return run(() => receipts.removeReceipt(ctx, id(expenseId), version(expenseVersion)), "Scontrino rimosso.");
 }
 
 export async function updateExpenseAction(expenseId: string, _: ActionState, formData: FormData): Promise<ActionState> {
@@ -109,7 +134,8 @@ const DELETE_TARGETS = {
 export async function deleteFinanceRecordAction(table: keyof typeof DELETE_TARGETS, recordId: string): Promise<ActionState> {
   if (!(table in DELETE_TARGETS)) return { ok: false, message: messageFor("invalid") };
   const ctx = await requireExecutionContext();
-  const state = await run(() => deleteRecord(ctx, table, id(recordId)));
+  // An expense takes its receipt photo with it.
+  const state = await run(() => (table === "expenses" ? receipts.deleteExpense(ctx, id(recordId)) : deleteRecord(ctx, table, id(recordId))));
   if (state.ok) redirect(DELETE_TARGETS[table]);
   return state;
 }

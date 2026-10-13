@@ -7,9 +7,10 @@ import type { WardrobeItem } from "@/lib/db/types";
 import { DomainError, throwIfDbError } from "@/lib/errors";
 import type { ExecutionContext } from "@/lib/households/context";
 import { visibilitySchema } from "@/lib/households/permissions";
-import { EXTENSION, MAX_PIXELS, MAX_UPLOAD_BYTES, sniffImage, type ImageMime } from "@/lib/image-check";
+import { EXTENSION, MAX_PIXELS, type ImageMime } from "@/lib/image-check";
 import { BAPTISTA_BUCKETS } from "@/lib/supabase/schema";
 import { CLOTHING_TYPES, COLORS, FORMALITIES, parseTags, PATTERNS, SEASONS } from "@/lib/wardrobe";
+import { checkImage } from "@/services/images";
 import { getRecord, optionalCivilDate, optionalDecimal, optionalText, requiredText, updateVersioned, versionField } from "@/services/shared";
 
 const BUCKET = BAPTISTA_BUCKETS.wardrobe;
@@ -55,23 +56,7 @@ type PreparedPhoto = { original: Uint8Array; mime: ImageMime; thumb: Buffer };
  * auto-rotated, at most 800 px, WebP, without EXIF/GPS (sharp drops metadata by default).
  */
 export async function preparePhoto(file: File): Promise<PreparedPhoto> {
-  if (file.size === 0) throw new DomainError("image_invalid");
-  if (file.size > MAX_UPLOAD_BYTES) throw new DomainError("image_too_large");
-  const original = new Uint8Array(await file.arrayBuffer());
-  const kind = sniffImage(original);
-  if (kind === "heic") throw new DomainError("image_heic");
-  if (!kind) throw new DomainError("image_invalid");
-  let width = 0;
-  let height = 0;
-  try {
-    // Header only (no decode): the pixel check below gives the precise error; decoding for the
-    // thumbnail keeps sharp's own pixel limit as a second guard.
-    ({ width = 0, height = 0 } = await sharp(original, { limitInputPixels: false }).metadata());
-  } catch {
-    throw new DomainError("image_invalid");
-  }
-  if (!width || !height) throw new DomainError("image_invalid");
-  if (width * height > MAX_PIXELS) throw new DomainError("image_too_large");
+  const { bytes: original, mime: kind } = await checkImage(file);
   const thumb = await sharp(original, { limitInputPixels: MAX_PIXELS })
     .rotate()
     .resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })

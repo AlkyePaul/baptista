@@ -42,7 +42,7 @@ export async function updateHousehold(ctx: ExecutionContext, input: z.infer<type
 
 /**
  * Lazy 30-day cleanup of private data left by former members (throttled to once a day in the
- * database). The rows go first; the orphaned wardrobe photos are then removed from storage.
+ * database). The rows go first; the orphaned wardrobe photos and receipts are then removed.
  */
 export async function purgeDepartedData(ctx: ExecutionContext) {
   const { data, error } = await ctx.supabase.rpc("purge_departed_data", { p_household_id: ctx.household.id });
@@ -50,10 +50,13 @@ export async function purgeDepartedData(ctx: ExecutionContext) {
     console.error("[baptista] purge failed", error.code ?? "no-code");
     return;
   }
-  const paths = [...new Set((data ?? []) as string[])];
-  if (!paths.length) return;
-  const { error: storageError } = await ctx.supabase.storage.from(BAPTISTA_BUCKETS.wardrobe).remove(paths);
-  if (storageError) console.error("[baptista] purge storage cleanup failed");
+  const rows = (data ?? []) as Array<{ bucket: string; path: string }>;
+  for (const bucket of [BAPTISTA_BUCKETS.wardrobe, BAPTISTA_BUCKETS.receipts]) {
+    const paths = [...new Set(rows.filter((r) => r.bucket === bucket).map((r) => r.path))];
+    if (!paths.length) continue;
+    const { error: storageError } = await ctx.supabase.storage.from(bucket).remove(paths);
+    if (storageError) console.error("[baptista] purge storage cleanup failed", bucket);
+  }
 }
 
 export async function getDirectory(ctx: ExecutionContext): Promise<DirectoryEntry[]> {

@@ -39,7 +39,7 @@ Le procedure privilegiate e i job verificano esplicitamente scope e autorizzazio
 
 ## Immagini e storage
 
-Bucket baptista-receipts, baptista-wardrobe e baptista-avatars privati. Percorso household UUID / proprietario UUID / upload UUID / nome generato dal server. Il prefisso è un criterio di policy, non prova sufficiente di accesso. Metadata e record source verificano ownership/visibilità anche per immagini elaborate. Un oggetto non ancora confermato è leggibile solo dall'uploader membro attivo.
+Bucket baptista-receipts, baptista-wardrobe e baptista-avatars privati. Percorso household UUID / proprietario UUID / upload UUID / nome generato dal server. Il prefisso è un criterio di policy, non prova sufficiente di accesso. Metadata e record source verificano ownership/visibilità anche per immagini elaborate. Un oggetto non ancora confermato è leggibile solo dall'uploader membro attivo. Scontrini (fase 04): il server conserva solo una ricodifica JPEG senza EXIF/GPS (max 2400 px) dopo il controllo dei byte reali; lo scontrino segue la visibilità della spesa (policy `baptista_receipts_*`).
 
 Policy su storage.objects limitate per bucket; niente alterazioni generalizzate delle policy esistenti. URL firmati brevi, emessi dopo autorizzazione, non loggati o memorizzati nei record. Un URL già firmato resta utilizzabile fino alla scadenza: usare TTL breve e documentare questo limite alla revoca. Concedere upsert soltanto se necessario, con tutte le operazioni richieste; preferire chiavi immutabili.
 
@@ -59,7 +59,7 @@ Bucket `baptista-wardrobe` privato (10 MB, JPEG/PNG/WebP). Policy su `storage.ob
 
 ## Servizi esterni non AI (D25, D26)
 
-Open Food Facts: chiamato solo dal server (Server Action autenticata), host fisso `world.openfoodfacts.org`, nessun redirect, timeout 8 s, risposta validata e valori fuori intervallo scartati; esce solo il testo cercato o il codice a barre. Non è un provider AI, quindi `local_only` non si applica, ma l'interfaccia dichiara dove va la ricerca. Licenza dati ODbL citata nell'interfaccia.
+Open Food Facts: chiamato solo dal server (Server Action autenticata), host fisso `world.openfoodfacts.org`, nessun redirect, timeout 8 s, risposta validata e valori fuori intervallo scartati; esce solo il testo cercato o il codice a barre. Non è un provider AI, quindi `local_only` non si applica, ma l'interfaccia dichiara dove va la ricerca. Licenza dati ODbL citata nell'interfaccia. Il codice a barre letto dalla fotocamera è decodificato sul dispositivo (`BarcodeDetector` nativo o zxing-wasm con il `.wasm` servito da Baptista, nessuna CDN); il video non lascia il telefono, al server arriva solo il codice.
 
 TradingView: il frammento ufficiale esegue uno script di terze parti nell'origine Baptista, dove potrebbe leggere i cookie di sessione Supabase non httpOnly. Si carica quindi soltanto l'iframe cross-origin (`www.tradingview-widget.com/embed-widget/mini-symbol-overview/`, lo stesso URL costruito dal loro script), con `sandbox` e `referrerPolicy="no-referrer"`; a TradingView arrivano solo simbolo e impostazioni di visualizzazione. Il formato dell'URL non è documentato ufficialmente: se cambia, il grafico smette di caricarsi senza effetti sulla sicurezza.
 

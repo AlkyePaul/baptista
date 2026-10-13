@@ -92,9 +92,14 @@ const needsLabel = (v: { merchant: string | null; description: string | null }, 
 export const expenseSchema = z.object(expenseFields).superRefine(needsLabel);
 export const updateExpenseSchema = z.object({ ...expenseFields, version: versionField }).superRefine(needsLabel);
 
-export async function createExpense(ctx: ExecutionContext, input: z.infer<typeof expenseSchema>) {
-  const { error } = await ctx.supabase.from("expenses").insert({ household_id: ctx.household.id, ...input });
+export async function createExpense(ctx: ExecutionContext, input: z.infer<typeof expenseSchema>, receiptPath: string | null = null) {
+  const { data, error } = await ctx.supabase
+    .from("expenses")
+    .insert({ household_id: ctx.household.id, ...input, receipt_path: receiptPath })
+    .select("id")
+    .single();
   throwIfDbError(error);
+  return (data as { id: string }).id;
 }
 
 export async function updateExpense(ctx: ExecutionContext, id: string, input: z.infer<typeof updateExpenseSchema>) {

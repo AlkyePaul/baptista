@@ -50,7 +50,7 @@ Full stack alternative: `npx supabase start` (requires Docker) using `supabase/c
 
 | Bucket | Visibility | Phase |
 | --- | --- | --- |
-| `baptista-receipts` | private | 04 |
+| `baptista-receipts` | private, 10 MB, JPEG only (server re-encodes); policies `baptista_receipts_{insert,select,delete}` | 04 (migration `baptista_receipts`, not yet applied) |
 | `baptista-wardrobe` | private, 10 MB, JPEG/PNG/WebP; policies `baptista_wardrobe_{insert,select,delete}` | 04 (migration `baptista_wardrobe`) |
 | `baptista-avatars` | private | 02 |
 

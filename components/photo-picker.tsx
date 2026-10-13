@@ -30,8 +30,25 @@ async function downsize(file: File): Promise<File> {
   }
 }
 
+const DEFAULT_HINT = "JPEG, PNG o WebP. La foto resta privata: la vede solo chi può vedere il capo.";
+
 /** Photo field for a form: «Scatta» (camera) or «Galleria»; the resized file is what gets sent. */
-export function PhotoPicker({ name = "photo", currentUrl }: { name?: string; currentUrl?: string | null }) {
+export function PhotoPicker({
+  name = "photo",
+  currentUrl,
+  label = "Foto",
+  alt = "Anteprima del capo",
+  hint = DEFAULT_HINT,
+  tall = false,
+}: {
+  name?: string;
+  currentUrl?: string | null;
+  label?: string;
+  alt?: string;
+  hint?: string;
+  /** Receipts are long and narrow: a taller frame. */
+  tall?: boolean;
+}) {
   const target = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null);
   const [busy, setBusy] = useState(false);
@@ -40,6 +57,18 @@ export function PhotoPicker({ name = "photo", currentUrl }: { name?: string; cur
   useEffect(() => () => {
     if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
   }, [preview]);
+
+  // The form clears the file after a successful save: clear the preview with it.
+  useEffect(() => {
+    const form = target.current?.form;
+    if (!form) return;
+    const onReset = () => {
+      setPreview(currentUrl ?? null);
+      setInfo(null);
+    };
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, [currentUrl]);
 
   async function pick(file: File | undefined) {
     if (!file || !target.current) return;
@@ -56,11 +85,11 @@ export function PhotoPicker({ name = "photo", currentUrl }: { name?: string; cur
   const pickerClass = cx(buttonClass.secondary, "flex-1 cursor-pointer px-3 text-sm");
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium">Foto</span>
-      <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-surface">
+      <span className="text-sm font-medium">{label}</span>
+      <div className={cx("flex w-full", tall ? "aspect-[3/4] max-h-96" : "aspect-[4/5]", " items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-surface")}>
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element -- local blob or short-lived signed URL
-          <img src={preview} alt="Anteprima del capo" className="h-full w-full object-contain" />
+          <img src={preview} alt={alt} className="h-full w-full object-contain" />
         ) : (
           <span className="flex flex-col items-center gap-2 text-sm text-muted">
             <Icon name="camera" className="size-10" />
@@ -81,7 +110,7 @@ export function PhotoPicker({ name = "photo", currentUrl }: { name?: string; cur
       </div>
       <input ref={target} type="file" name={name} hidden tabIndex={-1} aria-hidden />
       <p className="text-xs text-muted" role="status">
-        {busy ? "Preparo la foto…" : (info ?? "JPEG, PNG o WebP. La foto resta privata: la vede solo chi può vedere il capo.")}
+        {busy ? "Preparo la foto…" : (info ?? hint)}
       </p>
     </div>
   );

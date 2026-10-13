@@ -220,8 +220,8 @@ describe("departed-member purge", () => {
     const visible = () => count(owner2, "select * from storage.objects where bucket_id = 'baptista-wardrobe' and name = $1", [photo]);
     assert.equal(await visible(), 0, "still used by a private item: not readable");
 
-    const paths = await as(db, owner2, (q) => q<{ p: string }>("select p from baptista.purge_departed_data($1) as p", [h2]));
-    assert.deepEqual([...new Set(paths.map((r) => r.p))], [photo]);
+    const paths = await as(db, owner2, (q) => q<{ bucket: string; path: string }>("select bucket, path from baptista.purge_departed_data($1)", [h2]));
+    assert.deepEqual([...new Set(paths.map((r) => `${r.bucket}:${r.path}`))], [`baptista-wardrobe:${photo}`]);
     const deleted = await as(db, owner2, (q) =>
       q("delete from storage.objects where bucket_id = 'baptista-wardrobe' and name = $1 returning id", [photo]),
     );

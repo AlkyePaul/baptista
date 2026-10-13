@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createCatalogFoodAction, pickOffFoodAction, searchCatalogAction, searchOffAction } from "@/app/actions/catalog";
+import { BarcodeScanner } from "@/components/barcode-scanner";
 import { ACTION_SUCCESS_EVENT } from "@/components/forms";
 import { Icon } from "@/components/icons";
 import { buttonClass, cx } from "@/components/ui";
@@ -9,12 +10,15 @@ import type { Food } from "@/lib/db/types";
 import { FOOD_CATEGORIES, foodLine } from "@/lib/food";
 import type { FoodFacts } from "@/lib/openfoodfacts-parse";
 
+const BARCODE = /^[0-9]{6,14}$/;
+
 const inputClass =
   "min-h-12 w-full min-w-0 rounded-xl border border-border bg-surface px-4 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent/25";
 
 /**
  * Picks a food from the household catalog (D31): search the catalog first, then Open Food Facts;
- * if nothing fits, «Nuovo alimento» adds it to the catalog. The chosen food travels as a hidden
+ * if nothing fits, «Nuovo alimento» adds it to the catalog. «Scansiona» reads the barcode with the
+ * camera and runs the same searches with the code. The chosen food travels as a hidden
  * `food_id` input of the surrounding form. No free-text food anywhere.
  */
 export function FoodPicker({
@@ -39,6 +43,7 @@ export function FoodPicker({
   const [off, setOff] = useState<FoodFacts[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [pending, start] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -105,6 +110,28 @@ export function FoodPicker({
     });
   }
 
+  /** A scanned code: the household catalog first (exact match = chosen), then Open Food Facts. */
+  function scanned(code: string) {
+    setScanning(false);
+    if (timer.current) clearTimeout(timer.current);
+    setQ(code);
+    setFoods(null);
+    setOff(null);
+    setCreating(false);
+    setMessage(null);
+    start(async () => {
+      const own = await searchCatalogAction(code);
+      const match = own.ok ? own.foods.find((f) => f.barcode === code) : undefined;
+      if (match) return choose(match);
+      const r = await searchOffAction(code);
+      if (!r.ok) setMessage(r.message);
+      else {
+        setOff(r.results);
+        if (!r.results.length) setMessage(`Codice ${code}: non trovato su Open Food Facts. Puoi aggiungerlo come nuovo alimento.`);
+      }
+    });
+  }
+
   function pickOff(facts: FoodFacts) {
     start(async () => {
       const r = await pickOffFoodAction(facts);
@@ -149,9 +176,18 @@ export function FoodPicker({
           }}
           placeholder="Cerca per nome o codice a barre"
           autoComplete="off"
-          className={cx(inputClass, "pl-10")}
+          className={cx(inputClass, "pr-14 pl-10")}
         />
+        <button
+          type="button"
+          onClick={() => setScanning(true)}
+          aria-label="Scansiona il codice a barre"
+          className="absolute top-1/2 right-1 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-accent hover:bg-accent/10"
+        >
+          <Icon name="camera" className="size-6" />
+        </button>
       </div>
+      {scanning ? <BarcodeScanner onDetected={scanned} onClose={() => setScanning(false)} /> : null}
 
       {foods?.length ? (
         <ResultList>
@@ -174,7 +210,7 @@ export function FoodPicker({
             Cerca su Open Food Facts
           </button>
           <button type="button" onClick={() => setCreating(true)} className={cx(buttonClass.ghost, "min-h-10 px-3 text-accent")}>
-            + Nuovo alimento «{q.trim()}»
+            {BARCODE.test(q.trim()) ? `+ Nuovo alimento con codice ${q.trim()}` : `+ Nuovo alimento «${q.trim()}»`}
           </button>
         </div>
       ) : null}
@@ -198,7 +234,7 @@ export function FoodPicker({
         </>
       ) : null}
 
-      {creating ? <NewFood initialName={q.trim()} onCreated={choose} onCancel={() => setCreating(false)} /> : null}
+      {creating ? <NewFood query={q.trim()} onCreated={choose} onCancel={() => setCreating(false)} /> : null}
       {pending ? <p className="text-xs text-muted">Cerco…</p> : null}
       {message ? (
         <p role="status" className="text-sm text-muted">
@@ -214,8 +250,11 @@ function ResultList({ children }: { children: React.ReactNode }) {
 }
 
 /** Inline (not a nested form): values are sent with a button, the surrounding form is untouched. */
-function NewFood({ initialName, onCreated, onCancel }: { initialName: string; onCreated: (food: Food) => void; onCancel: () => void }) {
-  const [fields, setFields] = useState<Record<string, string>>({ name: initialName, category: "other" });
+function NewFood({ query, onCreated, onCancel }: { query: string; onCreated: (food: Food) => void; onCancel: () => void }) {
+  // A searched (or scanned) code becomes the barcode, not the name.
+  const [fields, setFields] = useState<Record<string, string>>(
+    BARCODE.test(query) ? { name: "", barcode: query, category: "other" } : { name: query, category: "other" },
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -243,7 +282,8 @@ function NewFood({ initialName, onCreated, onCancel }: { initialName: string; on
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-accent/50 p-3">
       <p className="text-sm font-medium">Nuovo alimento di casa</p>
-      {field("name", "Nome")}
+      {field("name", "Nome", { autoFocus: Boolean(fields.barcode) })}
+      {fields.barcode ? <p className="text-xs text-muted">Codice a barre: {fields.barcode}</p> : null}
       <div className="grid grid-cols-2 gap-2">
         {field("brand", "Marca")}
         <label className="flex flex-col gap-1 text-sm font-medium">

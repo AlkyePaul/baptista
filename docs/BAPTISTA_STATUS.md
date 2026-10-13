@@ -1,18 +1,18 @@
 # BAPTISTA — Stato verificato
 
-Ultimo aggiornamento: 2026-10-12.
+Ultimo aggiornamento: 2026-10-13.
 
 ## Current phase
 
-**Phase 04.1 — CONNESSIONI + BAPTISTA DETERMINISTICO: in_progress, codice completo.** Passi A e B, D31 (catalogo alimenti) e D33 (utenti da `app_users`) implementati e applicati in remoto; `npm run check` e `npm test` verdi (2026-10-12). Per il gate formale di 02/03/04/04.1 manca solo il walkthrough con gli account reali, che richiede il deploy Vercel funzionante. **Prossimo lavoro: i tre punti di «Prossimi passi» qui sotto**, poi la fase 05.
+**Phase 04.1 — CONNESSIONI + BAPTISTA DETERMINISTICO: in_progress, codice completo.** Passi A e B, D31 (catalogo alimenti) e D33 (utenti da `app_users`) implementati e applicati in remoto; `npm run check` e `npm test` verdi (2026-10-12). Per il gate formale di 02/03/04/04.1 manca solo il walkthrough con gli account reali, che richiede il deploy Vercel funzionante. **«Prossimi passi» (sotto): scontrino e lettore codice a barre implementati il 2026-10-13, migration `baptista_receipts` da applicare in remoto; battuta del giorno rivista dall'utente.** Poi la fase 05.
 
-**Phase 04 — ADVANCED DOMAINS: in_progress, deterministica (D28).** Cucina, Finanze e Guardaroba (con foto private) applicati in remoto. Restano la foto dello scontrino e il lettore codice a barre (vedi «Prossimi passi»). Per D28 router AI, vision e intake passano alla fase 05.
+**Phase 04 — ADVANCED DOMAINS: in_progress, deterministica (D28).** Cucina, Finanze e Guardaroba (con foto private) applicati in remoto; foto dello scontrino e lettore codice a barre implementati (2026-10-13), scontrino in attesa dell'apply remoto. Per D28 router AI, vision e intake passano alla fase 05.
 
 ### Prossimi passi (focus deciso dall'utente il 2026-10-12)
 
-1. **Foto dello scontrino allegata alla spesa.** Non costruita: `baptista-receipts` esiste solo come nome in `lib/supabase/schema.ts`, senza bucket di storage né codice di upload. Stesse regole del guardaroba: bucket privato, policy per percorso `<casa>/<utente>/<upload>/<file>`, riduzione nel browser, controllo di byte e pixel sul server, URL firmati.
-2. **Lettore codice a barre da fotocamera** (Cucina: Aggiungi, Lista della spesa, catalogo). Non costruito: oggi il codice si può solo digitare nel campo di ricerca.
-3. **Revisione delle voci della «battuta del giorno»** (utente). Il 2026-10-12 l'utente ha portato le voci da 8 a 43 (commit `793800a`: 35 citazioni e 8 battute su famiglia, finanze, cucina, guardaroba); da rileggere prima del rilascio. C7 (costo stimato) resta facoltativo.
+1. **Foto dello scontrino allegata alla spesa — implementata, migration da applicare.** Migration `20261013084111_baptista_receipts`: bucket privato `baptista-receipts` (10 MB, solo JPEG), colonna `expenses.receipt_path` (percorso `<casa>/<utente>/<upload>/scontrino.jpg`, prefisso casa verificato da check, cartella dell'utente verificata da trigger), policy insert/select/delete come il guardaroba (leggibile da chi può leggere la spesa; spesa privata = scontrino privato), purge D32 che ora restituisce `(bucket, path)` e include gli scontrini delle spese private eliminate. App: `services/receipts.ts` (riduzione nel browser con `PhotoPicker`, poi sul server controllo di byte reali/dimensione/pixel con `services/images.ts` e ricodifica JPEG max 2400 px senza EXIF/GPS; upload prima della riga e rimozione se la riga fallisce; sostituzione, rimozione, eliminazione della spesa con il suo file; URL firmati da 10 minuti). UI: campo «Scontrino (facoltativo)» in Finanze → Aggiungi → Spesa; sezione «Scontrino» nel dettaglio della spesa (vedi, allega/cambia, rimuovi); icona scontrino nell'elenco Movimenti. Nessuna lettura del contenuto: arriva in fase 05.
+2. **Lettore codice a barre da fotocamera — implementato.** Pulsante fotocamera nel campo di ricerca di ogni selettore alimenti (`FoodPicker`: Cucina → Aggiungi, Lista della spesa, Dieta, Pasti, Ricette) e nel campo «Codice a barre» della scheda alimento del catalogo. `components/barcode-scanner.tsx`: fotocamera posteriore a schermo intero, EAN-13/EAN-8/UPC-A/UPC-E, codice accettato dopo due letture uguali con cifra di controllo valida (`lib/barcode.ts`), ripiego «Foto del codice». Decodifica sempre sul dispositivo: `BarcodeDetector` nativo (Chrome Android) oppure il ponyfill `barcode-detector@3.2.2` (zxing-wasm) con il file `.wasm` servito da Baptista (`scripts/copy-zxing.mjs` in `predev`/`prebuild` → `public/zxing/`, ignorato da git; escluso dal proxy). Dopo la lettura: alimento di casa con lo stesso codice → scelto subito; altrimenti ricerca Open Food Facts per codice (già esistente, nessuna chiave API: l'API di lettura è pubblica e chiede solo uno User-Agent); se non trovato, «Nuovo alimento con codice …» con il codice già compilato.
+3. **Revisione delle voci della «battuta del giorno»: fatta dall'utente** (2026-10-13). C7 (costo stimato) resta facoltativo.
 
 | Fase | Stato | Nota |
 | --- | --- | --- |
@@ -20,7 +20,7 @@ Ultimo aggiornamento: 2026-10-12.
 | 01 Database | completed | test isolati PGlite 27/27 + migration applicate al progetto condiviso |
 | 02 Auth/Household | in_progress (gate) | semplificata da D33 (utenti da `app_users`, niente inviti né registrazione); test DB passati; **manca walkthrough browser con i 2 account reali** |
 | 03 Core domains | in_progress (gate) | codice, migration e test DB/unit passati; **manca walkthrough browser autenticato** |
-| 04 Advanced domains | in_progress | deterministica (D28): Cucina/Finanze/Guardaroba applicati; mancano foto dello scontrino, lettore codice a barre, walkthrough autenticato |
+| 04 Advanced domains | in_progress | deterministica (D28): Cucina/Finanze/Guardaroba applicati; scontrino e lettore codice a barre implementati (2026-10-13, migration scontrino da applicare); manca walkthrough autenticato |
 | 04.1 Connessioni + Baptista deterministico | in_progress | codice A+B, D31, D33 completi e applicati; test e build ok (2026-10-12); walkthrough con gli account reali da fare dopo il deploy |
 | 05–07 | not_started | — |
 
@@ -232,11 +232,21 @@ Non eseguiti: deploy Vercel; walkthrough autenticato del flusso del mockup, list
 
 Non eseguiti: login reale nel browser con i due account; installazione su telefono per vedere l'icona.
 
+2026-10-13 — Scontrino e lettore codice a barre, Windows 11, Node 22.11.0:
+
+| Comando / scenario | Esito |
+| --- | --- |
+| `npm run test:db` | **105/105** (nuovo `supabase/tests/receipts.test.ts`, 5 test: bucket privato solo JPEG 10 MB; upload solo nella propria cartella di una casa di cui si è membri; lettura da uploader e poi da chi legge la spesa, nascosto se la spesa diventa privata; spesa non può puntare al file di un altro né a un'altra casa, un membro può allegare il proprio scontrino a una spesa condivisa e chi legge la spesa può rimuoverlo; purge a 30 giorni restituisce `(baptista-receipts, path)` e il file diventa eliminabile). Test purge guardaroba adattato al nuovo formato `(bucket, path)` |
+| `npm run test:unit` | **44/44** (nuovo `lib/barcode.test.ts`: cifra di controllo GS1, formati accettati) |
+| `npm run check` | ok. Il build stampa `ExperimentalWarning: Importing JSON modules` di Node 22 anche senza le modifiche di oggi (preesistente, innocuo) |
+
+Non eseguiti: apply remoto di `baptista_receipts` (in attesa dell'utente); prova reale della fotocamera su iPhone e Android; upload reale di uno scontrino.
+
 ## Handoff
 
 0. **Deploy (utente):** eliminare il progetto Vercel `baptista-13yx`, poi commit e push di questa sessione e nuovo deploy di `baptista`. La migration D33 è già applicata: anche il codice già online funziona per i due utenti in tabella.
 1. **Walkthrough (utente)** con i due account reali sull'URL di produzione: login (e rifiuto di un account GuideApp fuori tabella), Soggiorno, Cucina, Finanze, Guardaroba, lista condivisa tra i due, «Ora no» tra dispositivi, `prefers-reduced-motion`, installazione sul telefono con l'icona. Chiude i gate 02/03/04/04.1, salvo i «Prossimi passi».
-2. **Prossimi passi** (sopra): foto dello scontrino, lettore codice a barre, revisione della battuta del giorno.
+2. **Scontrino e codice a barre** (sopra): review e apply remoto di `20261013084111_baptista_receipts` **prima** del deploy del codice (README Supabase, punto 6), poi prova sul telefono: scansione di un prodotto (iPhone e Android), spesa con scontrino, sostituzione e rimozione, spesa privata vista dall'altro account.
 3. Ancora aperti: incidente `mosquitos` (Dashboard → Exposed schemas), chiave `sb_publishable_` consigliata.
 4. Fase 05: prima lo strato AI con Vercel AI Gateway (router, ai_settings/ai_runs, visual_intakes, lettura degli scontrini e classificazione/segmentazione del guardaroba con review), poi l'agente. La lettura dello scontrino partirà dalla foto del «Prossimo passo» 1.
 

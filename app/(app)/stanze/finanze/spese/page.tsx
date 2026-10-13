@@ -3,6 +3,7 @@ import Link from "next/link";
 import { deleteBudgetAction } from "@/app/actions/finance";
 import { BudgetBar, Money } from "@/components/finance";
 import { ActionButton } from "@/components/forms";
+import { Icon } from "@/components/icons";
 import { buttonClass, Card, cx, EmptyState, PrivateMark, Section } from "@/components/ui";
 import type { Expense } from "@/lib/db/types";
 import { addMonths, formatMonth, isMonth, localDate, monthOf, relativeDay } from "@/lib/dates";
@@ -13,7 +14,7 @@ import { listBudgets, listExpenseCategories, listMonthExpenses } from "@/service
 
 export const metadata: Metadata = { title: "Spese" };
 
-/** Expenses of a month; adding (manual or, later, from a receipt) is a modal here (D26). */
+/** Expenses of a month; adding (manual, optionally with the receipt photo) happens in Aggiungi. */
 export default async function ExpensesPage({ searchParams }: PageProps<"/stanze/finanze/spese">) {
   const ctx = await requireExecutionContext();
   const params = await searchParams;
@@ -151,6 +152,12 @@ function ExpenseRow({ expense, category }: { expense: Expense; category?: { name
           </span>
         </span>
         <PrivateMark visibility={expense.visibility} />
+        {expense.receipt_path ? (
+          <span className="shrink-0 text-muted">
+            <Icon name="receipt" className="size-4" />
+            <span className="sr-only">Con scontrino</span>
+          </span>
+        ) : null}
         <Money amount={expense.total} currency={expense.currency} className="font-medium" />
       </Link>
     </li>

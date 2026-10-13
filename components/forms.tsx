@@ -2,8 +2,10 @@
 
 import { createContext, useActionState, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { BarcodeScanner } from "@/components/barcode-scanner";
 import { initialActionState, type ActionState } from "@/lib/errors";
 import { VISIBILITY_LABELS } from "@/lib/households/permissions";
+import { Icon } from "@/components/icons";
 import { buttonClass, cx } from "@/components/ui";
 
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
@@ -71,6 +73,7 @@ export function Field({
   min,
   max,
   multiline,
+  scanBarcode,
   className,
 }: {
   label: string;
@@ -86,9 +89,13 @@ export function Field({
   min?: string | number;
   max?: string | number;
   multiline?: boolean;
+  /** A camera button that fills the field with a scanned product barcode. */
+  scanBarcode?: boolean;
   className?: string;
 }) {
   const id = useId();
+  const input = useRef<HTMLInputElement>(null);
+  const [scanning, setScanning] = useState(false);
   const state = useContext(FormStateContext);
   const error = state.fieldErrors?.[name];
   const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
@@ -109,17 +116,39 @@ export function Field({
       {multiline ? (
         <textarea {...common} rows={5} className={cx(inputClass, "py-3")} />
       ) : (
-        <input
-          {...common}
-          type={type}
-          autoComplete={autoComplete}
-          inputMode={inputMode}
-          step={step}
-          min={min}
-          max={max}
-          className={inputClass}
-        />
+        <div className="relative">
+          <input
+            {...common}
+            ref={input}
+            type={type}
+            autoComplete={autoComplete}
+            inputMode={inputMode}
+            step={step}
+            min={min}
+            max={max}
+            className={cx(inputClass, scanBarcode && "pr-12")}
+          />
+          {scanBarcode ? (
+            <button
+              type="button"
+              onClick={() => setScanning(true)}
+              aria-label={`${label}: scansiona`}
+              className="absolute top-1/2 right-0.5 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-accent hover:bg-accent/10"
+            >
+              <Icon name="camera" className="size-5" />
+            </button>
+          ) : null}
+        </div>
       )}
+      {scanning ? (
+        <BarcodeScanner
+          onClose={() => setScanning(false)}
+          onDetected={(code) => {
+            setScanning(false);
+            if (input.current) input.current.value = code;
+          }}
+        />
+      ) : null}
       {error ? (
         <p id={`${id}-error`} className="text-sm text-danger">
           {error}

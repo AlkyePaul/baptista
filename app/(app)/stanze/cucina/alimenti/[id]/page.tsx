@@ -37,7 +37,7 @@ export default async function CatalogFoodPage({ params }: PageProps<"/stanze/cuc
           <Field label="Nome" name="name" defaultValue={food.name} required />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Marca" name="brand" defaultValue={food.brand} hint="Facoltativa" />
-            <Field label="Codice a barre" name="barcode" inputMode="numeric" defaultValue={food.barcode} hint="Facoltativo" />
+            <Field label="Codice a barre" name="barcode" inputMode="numeric" defaultValue={food.barcode} hint="Facoltativo" scanBarcode />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <SelectField label="Categoria" name="category" defaultValue={food.category} options={FOOD_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))} />

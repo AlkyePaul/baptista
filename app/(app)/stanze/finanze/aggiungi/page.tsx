@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createExpenseAction, createFinanceGoalAction, setBudgetAction } from "@/app/actions/finance";
 import { ExpenseFields } from "@/components/finance";
 import { ActionForm, Field, SelectField, SubmitButton, VisibilityField } from "@/components/forms";
+import { PhotoPicker } from "@/components/photo-picker";
 import { Card, cx } from "@/components/ui";
 import { localDate } from "@/lib/dates";
 import { requireExecutionContext } from "@/lib/households/context";
@@ -18,6 +19,8 @@ const KINDS = [
   { id: "progetto", label: "Progetto", color: "#7a6fd0" },
 ] as const;
 type Kind = (typeof KINDS)[number]["id"];
+
+const RECEIPT_HINT = "Resta privato come la spesa: lo vede solo chi può vedere la spesa. Per ora è solo allegato, non viene letto.";
 
 export default async function FinanceAddPage({ searchParams }: PageProps<"/stanze/finanze/aggiungi">) {
   const ctx = await requireExecutionContext();
@@ -54,7 +57,8 @@ export default async function FinanceAddPage({ searchParams }: PageProps<"/stanz
         {kind === "spesa" ? (
           <ActionForm action={createExpenseAction} successMessage key="spesa">
             <ExpenseFields categories={categories} goals={goals} today={today} />
-            <SubmitButton>Salva spesa</SubmitButton>
+            <PhotoPicker name="receipt" label="Scontrino (facoltativo)" alt="Anteprima dello scontrino" hint={RECEIPT_HINT} tall />
+            <SubmitButton pendingLabel="Salvo la spesa…">Salva spesa</SubmitButton>
           </ActionForm>
         ) : kind === "budget" ? (
           <ActionForm action={setBudgetAction} successMessage key="budget">
