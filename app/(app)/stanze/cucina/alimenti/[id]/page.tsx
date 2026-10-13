@@ -44,6 +44,12 @@ export default async function CatalogFoodPage({ params }: PageProps<"/stanze/cuc
             <SelectField label="Di solito va in" name="default_storage" defaultValue={food.default_storage} options={STORAGES.map((s) => ({ value: s.id, label: s.label }))} />
           </div>
           <NutritionFields defaults={food} />
+          <p className="text-xs font-medium">Porzione unitaria</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Nome porzione" name="portion_label" defaultValue={food.portion_label} placeholder="Es. Uovo grande L" />
+            <Field label="Peso (g)" name="portion_weight_g" inputMode="decimal" defaultValue={food.portion_weight_g} placeholder="58" />
+          </div>
+          <p className="text-xs text-muted">Per alimenti contati a unità (uova, fette, frutti). Lascia vuoto per misurare in grammi.</p>
           <SubmitButton>Salva</SubmitButton>
         </ActionForm>
       </Card>

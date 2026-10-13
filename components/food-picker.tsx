@@ -304,6 +304,11 @@ function NewFood({ query, onCreated, onCancel }: { query: string; onCreated: (fo
         {field("carbs_100g", "Carb.", { inputMode: "decimal" })}
         {field("fat_100g", "Grassi", { inputMode: "decimal" })}
       </div>
+      <p className="text-xs text-muted">Porzione (facoltativo, per alimenti a unità: uova, fette, frutti…)</p>
+      <div className="grid grid-cols-2 gap-2">
+        {field("portion_label", "Nome porzione", { placeholder: "Es. Uovo grande L" })}
+        {field("portion_weight_g", "Peso (g)", { inputMode: "decimal", placeholder: "58" })}
+      </div>
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       <div className="flex gap-2">
         <button type="button" onClick={save} disabled={pending} className={cx(buttonClass.primary, "flex-1")}>
