@@ -23,7 +23,9 @@ La scrittura di un record condiviso da parte di un membro è ammessa, ma househo
 
 ## Membership e bootstrap
 
-Creazione household e prima membership owner sono una transazione. Impedire inserimenti membership arbitrari e auto-promozioni. Il prototipo consente aggiunta da parte dell'owner di utenti Baptista già esistenti tramite identificatore risolto sul server senza directory pubblica; inviti email e loro token sono fuori scope iniziale. Il destinatario deve accettare prima che la membership diventi attiva. Il provisioning è una procedura esplicita, non un GRANT generico sulla tabella.
+**Identità (D33, decisione utente 2026-10-12).** Baptista non è distribuita: `baptista.app_users` (email, nome, casa, ruolo) è l'unica fonte di chi può usarla, modificata solo da chi amministra il progetto Supabase (Table Editor; nessun accesso client). Il login resta email + password dell'Auth condiviso con GuideApp: un account dell'Auth senza riga in `app_users` non ottiene profilo né membership, viene disconnesso al login («Questo account non è abilitato a Baptista») e ogni procedura lo rifiuta (`require_uid()` → `not_allowed`). Profilo e membership derivano dalla riga tramite procedure definer (trigger della tabella e `claim_app_user()`, che legge l'email da `auth.users`, mai dal client). Registrazione, codici invito, onboarding e creazione di nuove case sono stati tolti dall'app; le procedure D32 restano nel DB inattive. Più owner per casa sono ammessi.
+
+Creazione household e prima membership owner sono una transazione. Impedire inserimenti membership arbitrari e auto-promozioni. Il provisioning è una procedura esplicita, non un GRANT generico sulla tabella.
 
 Impedire rimozione dell'ultimo owner; trasferimento richiede un membro attivo e transazione. Alla rimozione di un membro, revocare immediatamente l'accesso ai dati household inclusi i suoi record private nella household. Non trasferire automaticamente record privati. Consentire esportazione prima dell'uscita tramite accesso già autorizzato; recupero successivo non fa parte del prototipo. Cache client e selezione corrente vengono svuotate al cambio household/logout/revoca.
 

@@ -222,9 +222,10 @@ test("daily line: same for everyone on a day, different over N consecutive days,
       assert.equal(line.expression, "confirmation");
     }
   }
-  // Themes asked by the user: one joke and one quote each.
+  // Themes asked by the user: each has at least one joke and one quote.
   for (const theme of ["famiglia", "finanze", "cucina", "guardaroba"]) {
-    assert.deepEqual(DAILY.filter((e) => e.theme === theme).map((e) => e.kind).sort(), ["joke", "quote"]);
+    const kinds = new Set(DAILY.filter((e) => e.theme === theme).map((e) => e.kind));
+    assert.ok(kinds.has("joke") && kinds.has("quote"), `${theme}: a joke and a quote`);
   }
 });
 

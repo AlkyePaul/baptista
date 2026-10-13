@@ -15,6 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "Baptista", template: "%s · Baptista" },
   description: "Il sistema operativo privato della tua casa.",
+  // Home-screen name on iOS; the icon is app/apple-icon.png, Android uses app/manifest.ts.
+  appleWebApp: { title: "Baptista", capable: true, statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

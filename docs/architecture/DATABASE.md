@@ -20,6 +20,8 @@ Campi comuni ai record utente: household_id NOT NULL, owner_user_id, created_by,
 
 ```mermaid
 flowchart TD
+  W["app_users (allowlist, D33)"] --> P
+  W --> M
   U["auth.users"] --> P["baptista.profiles"]
   U --> M["household_members"]
   H["households"] --> M
@@ -42,6 +44,8 @@ Fase 01 crea soltanto households, household_members e profiles con fondazioni RL
 | households | name, timezone, created_by; cancellazione attraverso procedura controllata | 01 |
 | household_members | household_id, user_id, role owner/member, state pending/active/revoked; unique household/user | 01 |
 | profiles | user_id PK FK auth.users, display_name, avatar_path; dati personali self-only | 01 |
+| app_users | D33: **unica fonte di chi usa Baptista** e in quale casa. email PK (minuscola), display_name, household_id (set null), role owner/member. Gestita a mano dal Table Editor di Supabase: RLS senza policy, nessun grant ai client. Ogni modifica (trigger) applica la riga all'account Auth con la stessa email: profilo se manca, membership `active` con il ruolo della riga, revoca delle membership di altre case; eliminare la riga revoca la membership (la pulizia a 30 giorni di D32 vale anche qui). `claim_app_user()` la applica al login per gli account creati dopo la riga. `require_uid()` rifiuta (`not_allowed`) chi non è in tabella, quindi ogni procedura | 04.1 (D33) |
+| household_invitations / household_maintenance | D32: codici invito (hash, email, scadenza, tentativi) e stato della pulizia giornaliera. Gli inviti sono **inattivi dal D33** (nessuna UI, procedure ancora presenti ma utilizzabili solo da utenti in `app_users`); `household_maintenance` resta in uso per `purge_departed_data` | 04.1 (D32) |
 | calendar_events | title, starts_at, ends_at, all_day, start_date/end_date per all-day; fine dopo inizio | 03 |
 | tasks | title, status open/completed, due_date, completed_at; consistenza status/time | 03 |
 | notes | title, body, kind note/list; checklist semplice validata JSONB, niente editor collaborativo | 03 |

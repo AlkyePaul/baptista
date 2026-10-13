@@ -12,9 +12,9 @@ Il piano possiede ordine, dipendenze e confini. MASTER_SPEC possiede prodotto/in
 | 01 | [DATABASE](phases/PHASE_01_DATABASE.md) | gate 00 + DB isolato | schema base, RLS fail-closed e diff isolato |
 | 02 | [AUTH_HOUSEHOLD](phases/PHASE_02_AUTH_HOUSEHOLD.md) | gate 01 | flusso household e gate sicurezza multiutente |
 | 03 | [CORE_DOMAINS](phases/PHASE_03_CORE_DOMAINS.md) | gate 02 | domini senza AI, eventi/observations idempotenti |
-| 04 | [ADVANCED_DOMAINS](phases/PHASE_04_ADVANCED_DOMAINS.md) | gate 03 | cucina/finanze/guardaroba deterministici, foto private, nessuna AI (D28) |
+| 04 | [ADVANCED_DOMAINS](phases/PHASE_04_0ADVANCED_DOMAINS.md) | gate 03 | cucina/finanze/guardaroba deterministici, foto private, nessuna AI (D28) |
 | 04.1 | [CONNECTIONS_AND_BAPTISTA](phases/PHASE_04_1_CONNECTIONS_AND_BAPTISTA.md) | gate 04 (o residui riportati con decisione utente) | lista della spesa e connessioni tra stanze; strato Baptista deterministico (template, espressioni, micro‑conversazioni, memoria di presentazione), nessuna AI (D30) |
-| 05 | [BAPTISTA_AGENT](phases/PHASE_05_BAPTISTA_AGENT.md) | gate 04 | strato AI (router, vision con review), poi tools, memoria e conferme verificati |
+| 05 | [BAPTISTA_AGENT](phases/PHASE_05_BAPTISTA_AGENT.md) | gate 04 e 04.1 (o residui riportati con decisione utente) | strato AI (router, vision con review), poi tools, memoria e conferme verificati |
 | 06 | [PRODUCT_UX](phases/PHASE_06_PRODUCT_UX.md) | gate 05 | Home/mobile e percorsi coerenti |
 | 07 | [HARDENING](phases/PHASE_07_HARDENING.md) | gate 06 | regressione critica e demo riproducibile |
 

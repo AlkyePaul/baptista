@@ -26,29 +26,9 @@ export const householdSchema = z.object({
 
 export const updateHouseholdSchema = householdSchema.extend({ version: versionField });
 
-export const inviteSchema = z.object({
-  email: z.email("Inserisci un indirizzo email valido.").trim(),
-});
-
-export const inviteCodeSchema = z.object({
-  code: z
-    .string({ error: "Inserisci il codice invito." })
-    .trim()
-    .transform((code) => code.toUpperCase().replace(/[^A-Z0-9]/g, ""))
-    .refine((code) => code.length === 8, "Il codice invito ha 8 caratteri."),
-});
-
-export type Invitation = { email: string; expires_at: string; locked: boolean };
-
 export const profileSchema = z.object({
   display_name: requiredText(60, "Inserisci il nome da mostrare."),
 });
-
-export async function createHousehold(ctx: UserContext, input: z.infer<typeof householdSchema>) {
-  const { data, error } = await ctx.supabase.rpc("create_household", { p_name: input.name, p_timezone: input.timezone });
-  throwIfDbError(error);
-  return data as string;
-}
 
 export async function updateHousehold(ctx: ExecutionContext, input: z.infer<typeof updateHouseholdSchema>) {
   const { error } = await ctx.supabase.rpc("update_household", {
@@ -57,32 +37,6 @@ export async function updateHousehold(ctx: ExecutionContext, input: z.infer<type
     p_timezone: input.timezone,
     p_expected_version: input.version,
   });
-  throwIfDbError(error);
-}
-
-/** Returns the one-time code to share, or null when the person already uses Baptista. */
-export async function inviteMember(ctx: ExecutionContext, email: string): Promise<string | null> {
-  const { data, error } = await ctx.supabase.rpc("invite_member", { p_household_id: ctx.household.id, p_email: email });
-  throwIfDbError(error);
-  return (data as string | null) ?? null;
-}
-
-/** Redeems an invite code for the signed-in address; returns the household id, or null if invalid. */
-export async function claimInvitation(ctx: Pick<UserContext, "supabase">, code: string, displayName: string) {
-  const { data, error } = await ctx.supabase.rpc("claim_invitation", { p_code: code, p_display_name: displayName });
-  throwIfDbError(error);
-  return (data as string | null) ?? null;
-}
-
-export async function listInvitations(ctx: ExecutionContext): Promise<Invitation[]> {
-  if (ctx.role !== "owner") return [];
-  const { data, error } = await ctx.supabase.rpc("list_invitations", { p_household_id: ctx.household.id });
-  throwIfDbError(error);
-  return (data ?? []) as Invitation[];
-}
-
-export async function cancelInvitation(ctx: ExecutionContext, email: string) {
-  const { error } = await ctx.supabase.rpc("cancel_invitation", { p_household_id: ctx.household.id, p_email: email });
   throwIfDbError(error);
 }
 
@@ -100,21 +54,6 @@ export async function purgeDepartedData(ctx: ExecutionContext) {
   if (!paths.length) return;
   const { error: storageError } = await ctx.supabase.storage.from(BAPTISTA_BUCKETS.wardrobe).remove(paths);
   if (storageError) console.error("[baptista] purge storage cleanup failed");
-}
-
-export async function respondToInvite(ctx: UserContext, householdId: string, accept: boolean) {
-  const { error } = await ctx.supabase.rpc("respond_to_invite", { p_household_id: householdId, p_accept: accept });
-  throwIfDbError(error);
-}
-
-export async function removeMember(ctx: ExecutionContext, userId: string) {
-  const { error } = await ctx.supabase.rpc("remove_member", { p_household_id: ctx.household.id, p_user_id: userId });
-  throwIfDbError(error);
-}
-
-export async function transferOwnership(ctx: ExecutionContext, userId: string) {
-  const { error } = await ctx.supabase.rpc("transfer_ownership", { p_household_id: ctx.household.id, p_new_owner: userId });
-  throwIfDbError(error);
 }
 
 export async function getDirectory(ctx: ExecutionContext): Promise<DirectoryEntry[]> {

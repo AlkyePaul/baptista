@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { after } from "next/server";
 import { BaptistaAvatar } from "@/components/baptista/avatar";
-import { Icon } from "@/components/icons";
 import { RoomPill } from "@/components/room-pill";
 import { RoomShell } from "@/components/room-shell";
 import { Avatar } from "@/components/ui";
@@ -53,20 +52,6 @@ export default async function AppLayout({
                   +{active.length - 3}
                 </span>
               ) : null}
-            </Link>
-            <Link
-              href={ctx.role === "owner" ? "/casa#invita" : "/casa"}
-              aria-label={
-                ctx.role === "owner" ? "Invita un familiare" : "La tua casa"
-              }
-              className="flex size-11 items-center justify-center"
-            >
-              <span
-                aria-hidden
-                className="flex size-8 items-center justify-center rounded-full bg-highlight text-on-highlight"
-              >
-                <Icon name="add" className="size-5" />
-              </span>
             </Link>
           </div>
         </div>

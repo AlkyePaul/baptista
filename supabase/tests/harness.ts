@@ -91,10 +91,14 @@ export async function as<T>(
 }
 
 let counter = 0;
-export async function createUser(db: Db, name: string, withProfile = true) {
+export async function createUser(db: Db, name: string, withProfile = true, allowed = true) {
   counter += 1;
   const id = `00000000-0000-4000-8000-${String(counter).padStart(12, "0")}`;
   const user = { id, email: `${name.toLowerCase()}@test.local` };
+  if (allowed) {
+    // D33 allowlist, without a household: inserted before the Auth account, so it provisions nothing.
+    await db.query("insert into baptista.app_users (email, display_name) values ($1, $2)", [user.email, name]);
+  }
   await db.query("insert into auth.users (id, email) values ($1, $2)", [id, user.email]);
   if (withProfile) {
     // Profiles are provisioned only by claim_invitation; seed them directly as admin.
