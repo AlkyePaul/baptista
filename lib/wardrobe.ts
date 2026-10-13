@@ -1,3 +1,5 @@
+import type { IconName } from "@/lib/rooms";
+
 /** Guardaroba vocabulary (D28: manual classification). Ids are stable, labels are Italian. */
 
 export const CLOTHING_TYPES = [
@@ -83,14 +85,28 @@ export function colorHex(id: string | null): string | null {
 
 /** Default flat-lay canvas placements per clothing type (x, y as 0-1 fractions, scale). */
 export const DEFAULT_PLACEMENT: Record<string, { x: number; y: number; scale: number }> = {
-  accessory:  { x: 0.50, y: 0.08, scale: 0.55 },
-  top:        { x: 0.50, y: 0.25, scale: 0.80 },
-  knitwear:   { x: 0.50, y: 0.25, scale: 0.80 },
-  outerwear:  { x: 0.50, y: 0.20, scale: 0.90 },
-  dress:      { x: 0.50, y: 0.35, scale: 0.85 },
-  bottom:     { x: 0.50, y: 0.55, scale: 0.75 },
-  shoes:      { x: 0.50, y: 0.82, scale: 0.55 },
-  sportswear: { x: 0.50, y: 0.40, scale: 0.75 },
-  underwear:  { x: 0.50, y: 0.40, scale: 0.60 },
-  other:      { x: 0.50, y: 0.40, scale: 0.70 },
+  accessory:  { x: 0.50, y: 0.08, scale: 0.75 },
+  top:        { x: 0.50, y: 0.25, scale: 1.10 },
+  knitwear:   { x: 0.50, y: 0.25, scale: 1.10 },
+  outerwear:  { x: 0.50, y: 0.20, scale: 1.20 },
+  dress:      { x: 0.50, y: 0.35, scale: 1.15 },
+  bottom:     { x: 0.50, y: 0.55, scale: 1.00 },
+  shoes:      { x: 0.50, y: 0.82, scale: 0.75 },
+  sportswear: { x: 0.50, y: 0.40, scale: 1.00 },
+  underwear:  { x: 0.50, y: 0.40, scale: 0.80 },
+  other:      { x: 0.50, y: 0.40, scale: 0.95 },
+};
+
+/** Maps each clothing type to an icon name for the category strip. */
+export const CLOTHING_TYPE_ICON: Record<string, IconName> = {
+  top: "type-top",
+  knitwear: "type-knitwear",
+  bottom: "type-bottom",
+  dress: "type-dress",
+  outerwear: "type-outerwear",
+  shoes: "type-shoes",
+  accessory: "type-accessory",
+  sportswear: "type-sportswear",
+  underwear: "type-underwear",
+  other: "type-other",
 };

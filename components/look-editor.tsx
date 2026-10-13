@@ -5,7 +5,7 @@ import { Icon } from "@/components/icons";
 import { buttonClass, cx } from "@/components/ui";
 import type { LookItem, WardrobeItem } from "@/lib/db/types";
 import { initialActionState, type ActionState } from "@/lib/errors";
-import { CLOTHING_TYPES, DEFAULT_PLACEMENT } from "@/lib/wardrobe";
+import { CLOTHING_TYPES, CLOTHING_TYPE_ICON, DEFAULT_PLACEMENT } from "@/lib/wardrobe";
 import { createLookAction, saveLookItemsAction } from "@/app/actions/looks";
 
 type CanvasItem = {
@@ -54,8 +54,7 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     });
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
-  const [pickerCategory, setPickerCategory] = useState<string>("top");
+  const [drawerCategory, setDrawerCategory] = useState<string | null>(null);
   const [title, setTitle] = useState(existingTitle ?? "");
   const dragRef = useRef<{ id: string; startX: number; startY: number; itemX: number; itemY: number } | null>(null);
   const pinchRef = useRef<{ id: string; startDist: number; startScale: number; startAngle: number; startRot: number } | null>(null);
@@ -312,11 +311,21 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
       };
       setItems((prev) => [...prev, newItem]);
       setSelectedId(wi.id);
-      setShowPicker(false);
+      setDrawerCategory(null);
       loadImage(wi.id);
     },
     [items, loadImage],
   );
+
+  // Close drawer on ESC
+  useEffect(() => {
+    if (!drawerCategory) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerCategory(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerCategory]);
 
   // Generate preview and save
   const generatePreview = useCallback((): Blob | null => {
@@ -356,19 +365,27 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     initialActionState,
   );
 
-  const filteredItems = wardrobeItems.filter(
-    (w) => w.type === pickerCategory && w.status === "active" && !items.some((i) => i.id === w.id),
+  // Categories with available items (active, not already on canvas)
+  const availableCategories = CLOTHING_TYPES.filter((t) =>
+    wardrobeItems.some((w) => w.type === t.id && w.status === "active" && !items.some((i) => i.id === w.id)),
   );
+
+  const drawerItems = drawerCategory
+    ? wardrobeItems.filter((w) => w.type === drawerCategory && w.status === "active" && !items.some((i) => i.id === w.id))
+    : [];
+
+  const drawerLabel = drawerCategory ? CLOTHING_TYPES.find((t) => t.id === drawerCategory)?.label ?? "" : "";
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Canvas */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-white">
+      {/* Canvas + category sidebar */}
+      <div className="relative flex overflow-hidden rounded-2xl border border-border bg-white">
+        {/* Canvas */}
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
-          className="w-full touch-none"
+          className="min-w-0 flex-1 touch-none"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -376,6 +393,88 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         />
+
+        {/* Category icon strip */}
+        {availableCategories.length > 0 && (
+          <div className="flex w-11 flex-col gap-1 overflow-y-auto border-l border-border bg-surface/50 p-1">
+            {availableCategories.map((t) => {
+              const iconName = CLOTHING_TYPE_ICON[t.id];
+              const isOpen = drawerCategory === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  title={t.label}
+                  onClick={() => setDrawerCategory(isOpen ? null : t.id)}
+                  className={cx(
+                    "flex size-9 shrink-0 items-center justify-center rounded-lg transition",
+                    isOpen ? "bg-accent text-white" : "text-muted hover:bg-foreground/[0.06]",
+                  )}
+                >
+                  <Icon name={iconName} className="size-5" />
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Drawer backdrop + panel */}
+        {drawerCategory && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/30"
+              style={{ right: "2.75rem" }}
+              onClick={() => setDrawerCategory(null)}
+            />
+            {/* Sliding panel */}
+            <div
+              className="absolute bottom-0 right-11 top-0 w-[70%] max-w-[280px] animate-[slide-in-right_200ms_ease-out] overflow-y-auto border-l border-border bg-surface"
+            >
+              {/* Header */}
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-surface px-3 py-2">
+                <span className="text-sm font-medium">{drawerLabel}</span>
+                <button
+                  type="button"
+                  className="flex size-7 items-center justify-center rounded-md text-muted transition hover:bg-foreground/[0.06]"
+                  onClick={() => setDrawerCategory(null)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="size-4" aria-hidden>
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Item list */}
+              <div className="flex flex-col gap-1 p-2">
+                {drawerItems.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted">Nessun capo disponibile.</p>
+                ) : (
+                  drawerItems.map((wi) => {
+                    const src = (wi.processed_path && urls.get(wi.processed_path)) || (wi.thumb_path && urls.get(wi.thumb_path));
+                    return (
+                      <button
+                        key={wi.id}
+                        type="button"
+                        onClick={() => addItem(wi)}
+                        className="flex items-center gap-2 rounded-xl p-1.5 transition hover:bg-foreground/[0.04]"
+                      >
+                        <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-foreground/[0.03]">
+                          {src ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={src} alt="" className="h-full w-full object-contain" loading="lazy" />
+                          ) : (
+                            <Icon name="hanger" className="size-5 text-muted" />
+                          )}
+                        </span>
+                        <span className="line-clamp-2 text-left text-sm">{wi.name}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Item controls */}
@@ -390,62 +489,6 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
           <button type="button" className={cx(buttonClass.danger, "flex-1 text-xs")} onClick={removeItem}>
             Rimuovi
           </button>
-        </div>
-      ) : null}
-
-      {/* Add item button */}
-      <button type="button" className={buttonClass.secondary} onClick={() => setShowPicker(true)}>
-        <Icon name="add" className="size-5" /> Aggiungi capo
-      </button>
-
-      {/* Item picker */}
-      {showPicker ? (
-        <div className="rounded-2xl border border-border bg-surface p-3">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-medium">Scegli un capo</span>
-            <button type="button" className="text-sm text-muted" onClick={() => setShowPicker(false)}>
-              Chiudi
-            </button>
-          </div>
-          {/* Category tabs */}
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {CLOTHING_TYPES.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setPickerCategory(t.id)}
-                className={cx(
-                  "rounded-full border px-2.5 py-1 text-xs font-medium transition",
-                  pickerCategory === t.id ? "border-accent bg-accent/10 text-accent" : "border-border text-muted",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          {/* Item grid */}
-          {filteredItems.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted">Nessun capo in questa categoria.</p>
-          ) : (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {filteredItems.map((wi) => {
-                const src = (wi.processed_path && urls.get(wi.processed_path)) || (wi.thumb_path && urls.get(wi.thumb_path));
-                return (
-                  <button key={wi.id} type="button" onClick={() => addItem(wi)} className="flex flex-col items-center gap-1 rounded-xl border border-border p-1 transition hover:border-accent">
-                    <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg bg-foreground/[0.03]">
-                      {src ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={src} alt="" className="h-full w-full object-contain" loading="lazy" />
-                      ) : (
-                        <Icon name="hanger" className="size-6 text-muted" />
-                      )}
-                    </span>
-                    <span className="line-clamp-1 text-xs">{wi.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
       ) : null}
 

@@ -28,7 +28,17 @@ export type IconName =
   | "chart"
   | "camera"
   | "search"
-  | "outfit";
+  | "outfit"
+  | "type-top"
+  | "type-knitwear"
+  | "type-bottom"
+  | "type-dress"
+  | "type-outerwear"
+  | "type-shoes"
+  | "type-accessory"
+  | "type-sportswear"
+  | "type-underwear"
+  | "type-other";
 
 export type NavItem = { href: string; label: string; icon: IconName };
 

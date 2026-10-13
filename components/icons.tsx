@@ -144,6 +144,76 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M8 13v3l1 5h2.5l.5-3 .5 3H15l1-5v-3" />
     </>
   ),
+  "type-top": (
+    <>
+      {/* t-shirt */}
+      <path d="M8 4h8l3 3-2 2-2-1.5V20H9V7.5L7 9 5 7z" />
+    </>
+  ),
+  "type-knitwear": (
+    <>
+      {/* sweater with ribbed collar */}
+      <path d="M8 4h8l3 3-2 2-2-1.5V20H9V7.5L7 9 5 7z" />
+      <path d="M8 4c0 1.5 1.5 2.5 4 2.5S16 5.5 16 4" />
+      <path d="M9 14h6M9 17h6" />
+    </>
+  ),
+  "type-bottom": (
+    <>
+      {/* trousers */}
+      <path d="M7 4h10v4l-1 12h-3l-1-8-1 8H8L7 8z" />
+    </>
+  ),
+  "type-dress": (
+    <>
+      {/* dress silhouette */}
+      <path d="M9 3h6l1 4-2 1 2 5v4c0 1-1 3-4 3s-4-2-4-3v-4l2-5-2-1z" />
+    </>
+  ),
+  "type-outerwear": (
+    <>
+      {/* jacket */}
+      <path d="M8 3h8l3 4-2 2-1-1v12H8V8L7 9 5 7z" />
+      <path d="M12 3v17" />
+    </>
+  ),
+  "type-shoes": (
+    <>
+      {/* shoe side view */}
+      <path d="M4 16c0-2 1-4 3-5l4-2c2-1 4-1 6 0l3 2a2 2 0 0 1 1 2v1a2 2 0 0 1-2 2H4z" />
+      <path d="M7 11v3" />
+    </>
+  ),
+  "type-accessory": (
+    <>
+      {/* sunglasses */}
+      <circle cx="7.5" cy="13" r="3" />
+      <circle cx="16.5" cy="13" r="3" />
+      <path d="M10.5 13h3" />
+      <path d="M4.5 12 3 10M19.5 12 21 10" />
+    </>
+  ),
+  "type-sportswear": (
+    <>
+      {/* tank top / running top */}
+      <path d="M8 4h8v1l-1 1v14H9V6L8 5z" />
+      <path d="M8 4c-1.5.5-2 2-2 3l2 1M16 4c1.5.5 2 2 2 3l-2 1" />
+    </>
+  ),
+  "type-underwear": (
+    <>
+      {/* briefs */}
+      <path d="M6 6h12v4c0 3-2 7-3 8h-2l-1-4-1 4H9c-1-1-3-5-3-8z" />
+    </>
+  ),
+  "type-other": (
+    <>
+      {/* ellipsis dots */}
+      <circle cx="6" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    </>
+  ),
 };
 
 export function Icon({ name, className = "size-6" }: { name: IconName; className?: string }) {

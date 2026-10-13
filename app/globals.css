@@ -122,3 +122,11 @@
 @media (prefers-reduced-motion: reduce) {
   .baptista-enter, .baptista-bow, .baptista-appear, .baptista-fade { animation: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   Look editor: item-picker drawer slides in from the right.
+   --------------------------------------------------------------------------- */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
