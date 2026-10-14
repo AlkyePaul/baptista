@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import NextImage from "next/image";
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { cx } from "@/components/ui";
 import type { LookItem, WardrobeItem } from "@/lib/db/types";
@@ -473,15 +473,26 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
     initialActionState,
   );
 
-  // Derived
-  const availableCounts = new Map(CLOTHING_TYPES.map((t) => [
-    t.id,
-    wardrobeItems.filter((w) => w.type === t.id && w.status === "active" && !items.some((i) => i.id === w.id)).length,
-  ]));
+  // Derived (memoized to avoid recomputing on every canvas interaction)
+  const canvasIds = useMemo(() => new Set(items.map((i) => i.id)), [items]);
 
-  const drawerItems = drawerCategory
-    ? wardrobeItems.filter((w) => w.type === drawerCategory && w.status === "active" && !items.some((i) => i.id === w.id))
-    : [];
+  const availableCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const w of wardrobeItems) {
+      if (w.status === "active" && !canvasIds.has(w.id)) {
+        counts.set(w.type, (counts.get(w.type) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [wardrobeItems, canvasIds]);
+
+  const drawerItems = useMemo(
+    () =>
+      drawerCategory
+        ? wardrobeItems.filter((w) => w.type === drawerCategory && w.status === "active" && !canvasIds.has(w.id))
+        : [],
+    [wardrobeItems, drawerCategory, canvasIds],
+  );
 
   const drawerLabel = drawerCategory ? CLOTHING_TYPES.find((t) => t.id === drawerCategory)?.label ?? "" : "";
   const selectedItem = selectedId ? items.find((i) => i.id === selectedId) : null;

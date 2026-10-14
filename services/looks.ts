@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Look, LookItem } from "@/lib/db/types";
@@ -136,7 +137,7 @@ export async function updatePreview(ctx: ExecutionContext, id: string, version: 
   }
 }
 
-export async function listLooks(ctx: ExecutionContext): Promise<Look[]> {
+export const listLooks = cache(async function listLooks(ctx: ExecutionContext): Promise<Look[]> {
   const { data, error } = await ctx.supabase
     .from("looks")
     .select("*")
@@ -146,7 +147,7 @@ export async function listLooks(ctx: ExecutionContext): Promise<Look[]> {
     .limit(200);
   throwIfDbError(error);
   return (data ?? []) as Look[];
-}
+});
 
 export async function getLookWithItems(ctx: ExecutionContext, id: string): Promise<{ look: Look; items: LookItem[] } | null> {
   const look = await getRecord<Look>(ctx, "looks", id);

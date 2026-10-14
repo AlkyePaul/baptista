@@ -10,10 +10,12 @@ export const metadata: Metadata = { title: "Look" };
 export default async function LookDetailPage({ params }: PageProps<"/stanze/guardaroba/look/[id]">) {
   const { id } = await params;
   const ctx = await requireExecutionContext();
-  const result = await getLookWithItems(ctx, id);
+  const [result, wardrobeItems] = await Promise.all([
+    getLookWithItems(ctx, id),
+    listWardrobe(ctx, "active"),
+  ]);
   if (!result) notFound();
   const { look, items: lookItems } = result;
-  const wardrobeItems = await listWardrobe(ctx, "active");
   const urls = await signedUrls(ctx, wardrobeItems.flatMap((i) => [i.processed_path, i.thumb_path]));
   return (
     <LookEditor

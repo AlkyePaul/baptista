@@ -23,7 +23,6 @@ import {
   type ExecutionContext,
 } from "@/lib/households/context";
 import { getFeature, ROOM_LABELS } from "@/lib/features";
-import { getCurrentRoom } from "@/lib/rooms-server";
 import { eventStartDay, listEventsBetween } from "@/services/calendar";
 import { listFavorites } from "@/services/favorites";
 import { listNotes } from "@/services/notes";
@@ -32,15 +31,9 @@ import { listGoals } from "@/services/goals";
 import { getHabitWeeks, listHabits } from "@/services/habits";
 import { loadThread } from "@/services/baptista";
 import { listTasksDueBetween } from "@/services/tasks";
-import {
-  FinanceRoom,
-  KitchenRoom,
-  WardrobeRoom,
-} from "@/components/room-dashboards";
 
 export default async function HomePage() {
   const ctx = await requireExecutionContext();
-  const room = await getCurrentRoom();
   const tz = ctx.household.timezone;
   const now = new Date();
 
@@ -55,15 +48,7 @@ export default async function HomePage() {
         </h1>
       </header>
 
-      {room === "soggiorno" ? (
-        <LivingRoom ctx={ctx} now={now} />
-      ) : room === "cucina" ? (
-        <KitchenRoom ctx={ctx} now={now} />
-      ) : room === "finanze" ? (
-        <FinanceRoom ctx={ctx} now={now} />
-      ) : (
-        <WardrobeRoom ctx={ctx} now={now} />
-      )}
+      <LivingRoom ctx={ctx} now={now} />
     </>
   );
 }
@@ -145,9 +130,15 @@ async function LivingRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
             const feature = getFeature(item.featureId);
             if (!feature?.widgetId) return null;
             return (
-              <Suspense key={item.featureId} fallback={<div className="h-20 animate-pulse rounded-2xl bg-foreground/5" />}>
-                <Widget widgetId={feature.widgetId} ctx={ctx} />
-              </Suspense>
+              <Card key={item.featureId}>
+                <p className="px-4 pt-3 text-sm font-bold">{item.label}</p>
+                <Suspense fallback={<div className="mx-4 my-3 h-12 animate-pulse rounded-xl bg-foreground/5" />}>
+                  <Widget widgetId={feature.widgetId} ctx={ctx} />
+                </Suspense>
+                <Link href={item.href} className="block px-4 pb-3 text-xs text-muted">
+                  Apri
+                </Link>
+              </Card>
             );
           })}
         </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { memo, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addFoodEntryDirectAction, addMealEntryDirectAction, listRecentFoodsAction } from "@/app/actions/kitchen";
 import { searchCatalogAction, pickOffFoodAction, searchOffAction } from "@/app/actions/catalog";
@@ -170,7 +170,7 @@ export function FoodSelector({ day, slot: initialSlot, dayLabel, meals, onClose 
     });
   }
 
-  function addMeal(meal: Meal & { kcal: number }, portions: number) {
+  const addMeal = useCallback((meal: Meal & { kcal: number }, portions: number) => {
     startTransition(async () => {
       const result = await addMealEntryDirectAction({
         eaten_on: day,
@@ -185,7 +185,7 @@ export function FoodSelector({ day, slot: initialSlot, dayLabel, meals, onClose 
         setMessage(result.message ?? "Errore nell'aggiunta.");
       }
     });
-  }
+  }, [day, currentSlot, router]);
 
   // ── Portion selector ────────────────────────────────────────────────
 
@@ -267,7 +267,7 @@ export function FoodSelector({ day, slot: initialSlot, dayLabel, meals, onClose 
         {tab === "pasti" && (
           <MealsTab
             meals={meals}
-            onAdd={(meal, portions) => addMeal(meal, portions)}
+            onAdd={addMeal}
             pending={pending}
           />
         )}
@@ -293,7 +293,7 @@ export function FoodSelector({ day, slot: initialSlot, dayLabel, meals, onClose 
 
 // ── Header ────────────────────────────────────────────────────────────
 
-function SelectorHeader({
+const SelectorHeader = memo(function SelectorHeader({
   slotLabel,
   dayLabel,
   onClose,
@@ -359,11 +359,11 @@ function SelectorHeader({
       )}
     </div>
   );
-}
+});
 
 // ── Recent tab ────────────────────────────────────────────────────────
 
-function RecentTab({
+const RecentTab = memo(function RecentTab({
   foods,
   loaded,
   onSelect,
@@ -399,11 +399,11 @@ function RecentTab({
       </ul>
     </div>
   );
-}
+});
 
 // ── Search tab ────────────────────────────────────────────────────────
 
-function SearchTab({
+const SearchTab = memo(function SearchTab({
   query,
   onSearch,
   catalogResults,
@@ -497,11 +497,11 @@ function SearchTab({
       {message ? <p role="status" className="text-sm text-muted">{message}</p> : null}
     </div>
   );
-}
+});
 
 // ── Meals tab ─────────────────────────────────────────────────────────
 
-function MealsTab({
+const MealsTab = memo(function MealsTab({
   meals,
   onAdd,
   pending,
@@ -532,11 +532,11 @@ function MealsTab({
       ))}
     </ul>
   );
-}
+});
 
 // ── Portion picker ────────────────────────────────────────────────────
 
-function PortionPicker({
+const PortionPicker = memo(function PortionPicker({
   food,
   onConfirm,
   pending,
@@ -635,4 +635,4 @@ function PortionPicker({
       ) : null}
     </div>
   );
-}
+});

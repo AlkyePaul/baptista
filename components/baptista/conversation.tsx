@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState, useTransition } from "react";
+import { memo, useEffect, useReducer, useRef, useState, useTransition } from "react";
 import { answerAction, dismissForMeAction, markShownAction, saveStepAction, undoAction } from "@/app/actions/baptista";
 import { Visual } from "./visual";
 import { buttonClass, cx } from "@/components/ui";
@@ -29,7 +29,7 @@ function Thumbnail({ view, timeZone }: { view: ConversationView; timeZone: strin
  * The confirmation bubble appears only after the server answered ok; undo only for verified
  * inverses, for 30 s.
  */
-export function Conversation({
+export const Conversation = memo(function Conversation({
   view,
   timeZone,
   compact = false,
@@ -256,4 +256,4 @@ export function Conversation({
       ) : null}
     </article>
   );
-}
+});

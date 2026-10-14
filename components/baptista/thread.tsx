@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { closeDailyAction, markShownAction } from "@/app/actions/baptista";
 import type { ConversationView, ThreadView } from "@/lib/baptista/view";
 import { BaptistaBubble, useTypewriter } from "./bubble";
@@ -66,6 +66,13 @@ export function BaptistaThread({ thread, timeZone, compact = false }: { thread: 
   const [pinned, setPinned] = useState<ConversationView[]>([]);
   const [closed, setClosed] = useState<Set<string>>(new Set());
 
+  const handleEngaged = useCallback((v: ConversationView) => {
+    setPinned((prev) => (prev.some((p) => p.key === v.key) ? prev : [...prev, v]));
+  }, []);
+  const handleClosed = useCallback((key: string) => {
+    setClosed((prev) => new Set(prev).add(key));
+  }, []);
+
   const current = [thread.active, ...thread.queue].filter((v): v is ConversationView => v !== null);
   const focused = current.find((v) => v.key === focus) ?? current[0] ?? null;
   const queue = current.filter((v) => v !== focused);
@@ -83,8 +90,8 @@ export function BaptistaThread({ thread, timeZone, compact = false }: { thread: 
           view={view}
           timeZone={timeZone}
           compact={compact}
-          onEngaged={(v) => setPinned((prev) => (prev.some((p) => p.key === v.key) ? prev : [...prev, v]))}
-          onClosed={(key) => setClosed((prev) => new Set(prev).add(key))}
+          onEngaged={handleEngaged}
+          onClosed={handleClosed}
         />
       ))}
       {queue.length ? (

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { z } from "zod";
@@ -200,7 +201,11 @@ export async function deleteWardrobeItem(ctx: ExecutionContext, id: string) {
   if (!data?.length) throw new DomainError("not_found");
 }
 
-export async function listWardrobe(ctx: ExecutionContext, status: "active" | "archived" = "active"): Promise<WardrobeItem[]> {
+/**
+ * Request-scoped cache: multiple server components calling listWardrobe with the
+ * same status within one render share a single database round-trip.
+ */
+export const listWardrobe = cache(async (ctx: ExecutionContext, status: "active" | "archived" = "active"): Promise<WardrobeItem[]> => {
   const { data, error } = await ctx.supabase
     .from("wardrobe_items")
     .select("*")
@@ -210,7 +215,7 @@ export async function listWardrobe(ctx: ExecutionContext, status: "active" | "ar
     .limit(500);
   throwIfDbError(error);
   return (data ?? []) as WardrobeItem[];
-}
+});
 
 /** Signed URLs for the given paths (RLS on storage decides); missing ones are simply absent. */
 export async function signedUrls(ctx: ExecutionContext, paths: Array<string | null>): Promise<Map<string, string>> {

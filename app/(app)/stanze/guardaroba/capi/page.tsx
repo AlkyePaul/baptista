@@ -78,7 +78,8 @@ export default async function ClothesPage({ searchParams }: PageProps<"/stanze/g
       (!filters.colore || i.primary_color === filters.colore || i.secondary_colors.includes(filters.colore)),
   );
   const urls = await signedUrls(ctx, items.flatMap((i) => [i.processed_path, i.thumb_path]));
-  const typeCounts = new Map(CLOTHING_TYPES.map((t) => [t.id, all.filter((i) => i.type === t.id).length]));
+  const typeCounts = new Map<string, number>();
+  for (const i of all) typeCounts.set(i.type, (typeCounts.get(i.type) ?? 0) + 1);
   const chip = (active: boolean) =>
     cx(
       "flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm whitespace-nowrap",
