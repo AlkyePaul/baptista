@@ -125,7 +125,7 @@ export const shoppingExpense: Script = {
           { kind: "money", name: "total", label: "Totale (€)" },
           { kind: "text", name: "merchant", label: "Negozio", hint: "Facoltativo" },
           { kind: "date", name: "occurred_on", label: "Data", defaultValue: str(o.data.stocked_on) },
-          { kind: "visibility", name: "visibility", defaultValue: "household" },
+          { kind: "visibility", name: "visibility", defaultValue: "private" },
         ],
       },
     },

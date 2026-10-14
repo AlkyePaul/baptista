@@ -193,12 +193,12 @@ export function SelectField({
   );
 }
 
-export function VisibilityField({ defaultValue = "household" }: { defaultValue?: "household" | "private" }) {
+export function VisibilityField({ defaultValue = "private" }: { defaultValue?: "household" | "private" }) {
   return (
     <fieldset className="flex flex-col gap-1.5">
       <legend className="mb-1.5 text-sm font-medium">Chi può vederlo</legend>
       <div className="grid grid-cols-2 gap-2">
-        {(["household", "private"] as const).map((value) => (
+        {(["private", "household"] as const).map((value) => (
           <label
             key={value}
             className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm font-medium has-checked:border-accent has-checked:bg-accent/10 has-checked:text-accent"

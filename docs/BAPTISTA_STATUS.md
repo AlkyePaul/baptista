@@ -242,6 +242,23 @@ Non eseguiti: login reale nel browser con i due account; installazione su telefo
 
 Non eseguiti: apply remoto di `baptista_receipts` (in attesa dell'utente); prova reale della fotocamera su iPhone e Android; upload reale di uno scontrino.
 
+2026-10-14 — Home personalizzata, preferiti e navigazione gerarchica, Windows 11:
+
+| Comando / scenario | Esito |
+| --- | --- |
+| `npx tsc --noEmit` | ok (0 errori) |
+| eslint sui file nuovi | 0 errori, 0 warning |
+
+Implementazione: (1) **Feature registry** (`lib/features.ts`): 9 sezioni navigabili da 4 stanze, ognuna con ID stabile (`stanza.sezione`), icona, rotta, supporto preferiti e widget. (2) **Navigazione gerarchica**: il menu della pillola stanza nell'intestazione ora mostra le sezioni di ogni stanza con stella per aggiungere/rimuovere i preferiti; sostituisce il semplice selettore a 4 riquadri. (3) **Preferiti personali** (`baptista.user_favorites`): tabella con RLS self-only, un preferito per feature per utente, ordinamento e modalità di visualizzazione (link o widget). (4) **Home personalizzata**: la Home del Soggiorno mostra i preferiti dell'utente come link rapidi (griglia 3 colonne) e widget (per le sezioni con dati); modalità Modifica per riordinare, rimuovere e cambiare modalità; stato vuoto invitante. (5) **3 widget**: Diario alimentare (kcal oggi con anello), Spese (totale del mese con barra budget), Guardaroba (griglia degli ultimi 4 capi). Migration `20261014140000_user_favorites.sql` da applicare; graceful degradation se la tabella non esiste ancora. Icone aggiunte: `star`, `star-filled`, `grip`, `chevron-right`.
+
+File nuovi: `lib/features.ts`, `services/favorites.ts`, `app/actions/favorites.ts`, `components/favorite-star.tsx`, `components/favorites-section.tsx`, `components/nav-panel.tsx`, `components/widgets.tsx`, `supabase/migrations/20261014140000_user_favorites.sql`.
+
+File modificati: `lib/rooms.ts` (4 nuovi IconName), `lib/db/types.ts` (tipo `UserFavorite`), `components/icons.tsx` (4 nuove icone), `components/room-pill.tsx` (NavPanel al posto di RoomSwitcher), `app/(app)/layout.tsx` (favoritedSet passato alla pillola), `app/(app)/page.tsx` (sezione preferiti + widget nella LivingRoom), `docs/architecture/DATABASE.md` (tabella `user_favorites`).
+
+Non eseguiti: apply remoto di `20261014140000_user_favorites`; walkthrough autenticato nel browser.
+
+2026-10-14 — Aggiornamento icone e categorie Guardaroba (UI, nessuna migration): `Capi` mostra sempre le 9 categorie con immagine ottimizzata, numero di capi e stato non interattivo attenuato a zero; l'editor Look mostra il numero di capi ancora aggiungibili per categoria con lo stesso stato a zero; `Aggiungi capo` usa le immagini della stessa serie. Le icone comuni di Soggiorno, Cucina e Finanze usano gli asset in `public/icons/{general,food,finance}-icon` nei punti semantici corrispondenti; il tasto Baptista usa l'espressione `suggestion` già visibile nell'intestazione. `next/image` usa dimensioni di 28–40 px per le categorie e 32 px per le icone condivise. `npm run check`: ok (11 warning ESLint in altri file del workspace); `npm run test:unit`: 59/59. `npm test`: suite DB ferma nel setup PGlite con `not_allowed` (42501), 0/114 pass, 106 casi cancellati; il motivo non è stato risolto in questa sessione UI. Nessuna applicazione remota né walkthrough autenticato.
+
 ## Handoff
 
 0. **Deploy (utente):** eliminare il progetto Vercel `baptista-13yx`, poi commit e push di questa sessione e nuovo deploy di `baptista`. La migration D33 è già applicata: anche il codice già online funziona per i due utenti in tabella.

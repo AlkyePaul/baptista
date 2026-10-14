@@ -1,4 +1,23 @@
+import Image from "next/image";
 import type { IconName } from "@/lib/rooms";
+import { expressionSrc } from "@/lib/baptista/expressions";
+
+const IMAGE_PATHS: Partial<Record<IconName, string>> = {
+  home: "/icons/general-icon/home.png",
+  sofa: "/icons/general-icon/home.png",
+  habit: "/icons/general-icon/habit.png",
+  calendar: "/icons/general-icon/calendar.png",
+  target: "/icons/general-icon/objective.png",
+  cutlery: "/icons/food-icon/pot.png",
+  pantry: "/icons/food-icon/groceries.png",
+  diet: "/icons/food-icon/meal-tracking.png",
+  food: "/icons/food-icon/fruit-veg.png",
+  meals: "/icons/food-icon/pasti.png",
+  piggybank: "/icons/finance-icon/growth.png",
+  coins: "/icons/finance-icon/expenses.png",
+  chart: "/icons/finance-icon/trend.png",
+  assistant: expressionSrc("suggestion"),
+};
 
 const base = {
   viewBox: "0 0 24 24",
@@ -214,9 +233,44 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <circle cx="18" cy="12" r="1.5" fill="currentColor" stroke="none" />
     </>
   ),
+  star: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14 2 9.27l6.91-1.01z" />,
+  "star-filled": <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14 2 9.27l6.91-1.01z" fill="currentColor" />,
+  grip: (
+    <>
+      <circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none" />
+    </>
+  ),
+  "chevron-right": <path d="M9 6l6 6-6 6" />,
+  "chevron-left": <path d="M15 6l-6 6 6 6" />,
+  "chevron-down": <path d="M6 9l6 6 6-6" />,
+  "chevron-up": <path d="M6 15l6-6 6 6" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  repeat: (
+    <>
+      <path d="M17 1l4 4-4 4" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+      <path d="M7 23l-4-4 4-4" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+    </>
+  ),
+  skip: (
+    <>
+      <path d="M5 4l10 8-10 8z" />
+      <path d="M19 5v14" />
+    </>
+  ),
+  food: <path d="M12 21V9M12 13c-4 0-7-3-7-7 4 0 7 3 7 7ZM12 16c4 0 7-3 7-7-4 0-7 3-7 7Z" />,
+  meals: <path d="M4 4v16M9 4v16M4 10h5M16 4v16M16 4c3 2 4 5 4 8h-4" />,
 };
 
 export function Icon({ name, className = "size-6" }: { name: IconName; className?: string }) {
+  const src = IMAGE_PATHS[name];
+  if (src) return <Image src={src} alt="" aria-hidden width={32} height={32} className={`${className} object-contain`} />;
   return (
     <svg {...base} className={className}>
       {PATHS[name]}

@@ -47,7 +47,7 @@ export default async function MealPage({ params }: PageProps<"/stanze/cucina/pas
 
   return (
     <>
-      <TextLink href="/stanze/cucina/pasti#pasti">← Pasti</TextLink>
+      <TextLink href="/stanze/cucina/pasti">← Pasti</TextLink>
       <PageHeader title={meal.title} />
 
       <Card className="flex flex-col gap-2 p-4">

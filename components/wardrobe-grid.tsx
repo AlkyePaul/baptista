@@ -9,7 +9,7 @@ export function WardrobeGrid({ items, urls }: { items: WardrobeItem[]; urls: Map
   return (
     <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {items.map((item) => {
-        const src = item.thumb_path ? urls.get(item.thumb_path) : undefined;
+        const src = (item.processed_path && urls.get(item.processed_path)) || (item.thumb_path && urls.get(item.thumb_path)) || undefined;
         return (
           <li key={item.id}>
             <Link href={`/stanze/guardaroba/capi/${item.id}`} className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-surface">
@@ -20,12 +20,15 @@ export function WardrobeGrid({ items, urls }: { items: WardrobeItem[]; urls: Map
                 ) : (
                   <Icon name="hanger" className="size-10 text-muted" />
                 )}
+                               
+
               </span>
-              <span className="flex items-center gap-2 px-3 py-2">
-                {item.primary_color ? <Swatch color={item.primary_color} className="size-3 shrink-0" /> : null}
-                <span className="line-clamp-1 flex-1 text-sm font-medium">{item.name}</span>
-                <PrivateMark visibility={item.visibility} />
-              </span>
+              <span className="flex gap-2 px-3 py-2 items-center">
+                 {item.favourite ? <span className="text-amber-400">★</span> : null} {item.primary_color ? <Swatch color={item.primary_color} className="size-3 shrink-0 mr-1" /> : null}<PrivateMark visibility={item.visibility} /></span>
+ <span className="flex gap-2 px-3 pb-2 flex-1 text-sm font-medium">
+               
+               {item.name}</span>
+              
             </Link>
           </li>
         );

@@ -30,7 +30,7 @@ const itemFields = {
   expires_on: optionalCivilDate,
   /** The date typed is an estimate (nothing printed on the package). */
   expiry_estimated: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
-  visibility: visibilitySchema.default("household"),
+  visibility: visibilitySchema.default("private"),
 };
 
 function toRow({ expires_on, expiry_estimated, ...rest }: z.infer<z.ZodObject<typeof itemFields>>) {

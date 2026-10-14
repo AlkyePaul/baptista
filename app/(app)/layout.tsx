@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui";
 import { requireExecutionContext } from "@/lib/households/context";
 import { getCurrentRoom } from "@/lib/rooms-server";
 import { getDirectory, purgeDepartedData } from "@/services/households";
+import { favoritedSet } from "@/services/favorites";
 
 export default async function AppLayout({
   children,
@@ -14,9 +15,10 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const ctx = await requireExecutionContext();
-  const [members, room] = await Promise.all([
+  const [members, room, favorited] = await Promise.all([
     getDirectory(ctx),
     getCurrentRoom(),
+    favoritedSet(ctx),
   ]);
   const active = members.filter((m) => m.state === "active");
   // Lazy 30-day cleanup of former members' private data (once a day per household, in the DB).
@@ -25,7 +27,7 @@ export default async function AppLayout({
   return (
     <RoomShell selectedRoom={room}>
       {/* Mockup header: mascot + wordmark on the left; room, members and «+» on the right. */}
-      <header className="sticky top-0 z-10 bg-white/90 pt-[env(safe-area-inset-top,0px)] backdrop-blur transition-colors duration-500">
+      <header className="sticky top-0 z-10 bg-white/90 pt-[env(safe-area-inset-top,0px)] backdrop-blur transition-colors duration-500 shadow-sm">
         <div className="mx-auto flex max-w-md items-center justify-between gap-2 px-5 py-2">
           <Link
             href="/"
@@ -38,7 +40,7 @@ export default async function AppLayout({
             </span>
           </Link>
           <div className="flex items-center gap-2">
-            <RoomPill selected={room} />
+            <RoomPill selected={room} favoritedIds={Array.from(favorited)} />
             <Link
               href="/casa"
               className="flex min-h-11 items-center -space-x-2"

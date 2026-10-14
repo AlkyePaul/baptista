@@ -52,9 +52,9 @@ export async function KitchenRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
       <BaptistaGreeting greeting={kitchenGreeting(meals, kcal, target)} />
       <BaptistaRoom ctx={ctx} room="cucina" />
       <div className="grid grid-cols-3 gap-2">
-        <Shortcut href="/stanze/cucina/aggiungi" icon="add" label="Alimento" />
+        <Shortcut href="/stanze/cucina/aggiungi" icon="food" label="Alimento" />
         <Shortcut href="/stanze/cucina/dispensa" icon="pantry" label="Dispensa" />
-        <Shortcut href="/stanze/cucina/pasti" icon="diet" label="Pasti" />
+        <Shortcut href="/stanze/cucina/pasti" icon="meals" label="Pasti" />
       </div>
 
       <Section title="Ricettario" id="ricettario" action={<NewRecipe />}>
@@ -115,9 +115,9 @@ export async function FinanceRoom({ ctx, now }: { ctx: ExecutionContext; now: Da
       <BaptistaGreeting greeting={financeGreeting(monthElapsedShare(today), mainTotal, overall ? Number(overall.monthly_amount) : null, main)} />
       <BaptistaRoom ctx={ctx} room="finanze" />
       <div className="grid grid-cols-3 gap-2">
-        <Shortcut href="/stanze/finanze/aggiungi?tipo=spesa" icon="add" label="Spesa" />
-        <Shortcut href="/stanze/finanze/budget" icon="target" label="Budget" />
-        <Shortcut href="/stanze/finanze/aggiungi?tipo=progetto" icon="target" label="Progetto" />
+        <Shortcut href="/stanze/finanze/aggiungi?tipo=spesa" icon="coins" label="Spesa" />
+        <Shortcut href="/stanze/finanze/budget" icon="piggybank" label="Budget" />
+        <Shortcut href="/stanze/finanze/aggiungi?tipo=progetto" icon="chart" label="Progetto" />
       </div>
 
       <Section title="Questo mese" action={<TextLink href="/stanze/finanze/spese">Spese</TextLink>}>

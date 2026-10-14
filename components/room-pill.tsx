@@ -1,18 +1,18 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { selectRoomAction } from "@/app/actions/rooms";
 import { Icon } from "@/components/icons";
-import { RoomSwitcher } from "@/components/room-switcher";
+import { NavPanel } from "@/components/nav-panel";
 import { cx } from "@/components/ui";
 import { ROOMS, roomForPath, type RoomId } from "@/lib/rooms";
 
 /**
- * The only room switcher (user 2026-10-11): a pill in the header opens a full-width panel with all
- * rooms on one line; the chosen one moves to the left, then its Home opens.
+ * Room pill in the header: opens a full-width panel with hierarchical navigation.
+ * Rooms show their subsections with favorite star toggles.
  */
-export function RoomPill({ selected }: { selected: RoomId }) {
+export function RoomPill({ selected, favoritedIds }: { selected: RoomId; favoritedIds: string[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const pill = useRef<HTMLButtonElement>(null);
@@ -22,6 +22,8 @@ export function RoomPill({ selected }: { selected: RoomId }) {
   const [optimistic, setOptimistic] = useState<RoomId | null>(null);
   const current = optimistic ?? roomForPath(pathname) ?? selected;
   const room = ROOMS[current];
+
+  const favoritedSet = useMemo(() => new Set(favoritedIds), [favoritedIds]);
 
   useEffect(() => {
     if (!open) return;
@@ -36,12 +38,10 @@ export function RoomPill({ selected }: { selected: RoomId }) {
     setOpen((v) => !v);
   }
 
-  function choose(id: RoomId) {
+  function chooseRoom(id: RoomId) {
     setOptimistic(id);
     startTransition(async () => {
       await selectRoomAction(id);
-      // Let the tile reach the left before the panel closes (the move is the confirmation).
-      await new Promise((r) => setTimeout(r, 380));
       setOpen(false);
       router.push("/");
       setOptimistic(null);
@@ -55,7 +55,7 @@ export function RoomPill({ selected }: { selected: RoomId }) {
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        aria-label={`Stanza: ${room.label}. Cambia stanza`}
+        aria-label={`Stanza: ${room.label}. Esplora le sezioni`}
         data-room-tile={current}
         className={cx(
           "room-tile-active flex min-h-10 items-center gap-1.5 rounded-full pr-2.5 pl-3 text-sm font-medium shadow-sm transition-opacity",
@@ -70,9 +70,14 @@ export function RoomPill({ selected }: { selected: RoomId }) {
       {open ? (
         <>
           <button type="button" aria-label="Chiudi" onClick={() => setOpen(false)} className="fixed inset-0 z-30 cursor-default bg-foreground/10" style={{ top }} />
-          <div className="baptista-appear fixed inset-x-0 z-40 border-b border-border bg-surface/95 shadow-lg backdrop-blur" style={{ top }}>
+          <div className="baptista-appear fixed inset-x-0 z-40 max-h-[70dvh] overflow-y-auto border-b border-border bg-surface/95 shadow-lg backdrop-blur" style={{ top }}>
             <div className="mx-auto max-w-md px-5 py-4">
-              <RoomSwitcher selected={current} onChoose={choose} />
+              <NavPanel
+                selected={current}
+                favoritedIds={favoritedSet}
+                onClose={() => setOpen(false)}
+                onChooseRoom={chooseRoom}
+              />
             </div>
           </div>
         </>

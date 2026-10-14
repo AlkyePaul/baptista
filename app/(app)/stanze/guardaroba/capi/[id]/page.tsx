@@ -49,7 +49,8 @@ export default async function ClothingPage({ params }: PageProps<"/stanze/guarda
       <PageHeader
         title={item.name}
         action={
-          <span className="flex gap-1">
+          <span className="flex items-center gap-1">
+            {item.favourite ? <span className="text-lg text-amber-400">★</span> : null}
             {item.status === "archived" ? <Badge>Archiviato</Badge> : null}
             <PrivateMark visibility={item.visibility} />
           </span>

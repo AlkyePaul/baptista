@@ -9,7 +9,7 @@ export const wardrobeAcquisition: Script = {
     const name = str(o.data.name, o.description ?? "");
     return [`Hai aggiunto «${name}». L'hai comprato?`, `«${name}» è nuovo nel guardaroba. È un acquisto?`];
   },
-  options: (o, v) => [
+  options: (_o, v) => [
     {
       id: "bought",
       label: "Sì, l'ho comprato",
@@ -22,7 +22,7 @@ export const wardrobeAcquisition: Script = {
           { kind: "money", name: "price", label: "Prezzo (€)", hint: "Facoltativo ma consigliato" },
           { kind: "date", name: "occurred_on", label: "Data", defaultValue: v.today },
           { kind: "text", name: "merchant", label: "Negozio", hint: "Facoltativo" },
-          { kind: "visibility", name: "visibility", defaultValue: o.data.private === true ? "private" : "household" },
+          { kind: "visibility", name: "visibility", defaultValue: "private" },
         ],
       },
     },

@@ -70,6 +70,11 @@ export function WardrobeFields({ item, presetType }: { item?: WardrobeItem; pres
       ) : (
         <ChipGroup legend="Tipo" name="type" options={CLOTHING_TYPES} defaults={[item?.type ?? "top"]} />
       )}
+      <label className="flex cursor-pointer items-center gap-2">
+        <input type="checkbox" name="favourite" defaultChecked={item?.favourite} className="peer sr-only" />
+        <span className="text-2xl text-muted transition-colors peer-checked:text-amber-400">★</span>
+        <span className="text-sm font-medium">Preferito</span>
+      </label>
       <ColorGroup legend="Colore principale" name="primary_color" defaults={item?.primary_color ? [item.primary_color] : []} />
       <details className="rounded-2xl border border-border" open={Boolean(item?.secondary_colors.length)}>
         <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm font-medium">Altri colori</summary>
@@ -92,15 +97,7 @@ export function WardrobeFields({ item, presetType }: { item?: WardrobeItem; pres
           options={[{ value: "", label: "—" }, ...FORMALITIES.map((f) => ({ value: f.id, label: f.label }))]}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Marca" name="brand" defaultValue={item?.brand} />
-        <Field label="Taglia" name="size" defaultValue={item?.size} />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Dettaglio" name="subtype" placeholder="Es. camicia, sneakers" defaultValue={item?.subtype} />
-        <Field label="Materiale" name="material" placeholder="Es. cotone" defaultValue={item?.material} />
-      </div>
-      <Field label="Etichette" name="tags" placeholder="Es. ufficio, preferito" defaultValue={item?.tags.join(", ")} hint="Separate da virgole." />
+      <Field label="Taglia" name="size" defaultValue={item?.size} />
       <Field label="Note" name="notes" defaultValue={item?.notes} multiline />
       <VisibilityField defaultValue={item?.visibility} />
     </>

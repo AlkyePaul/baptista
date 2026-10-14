@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { toggleHabitDayAction } from "@/app/actions/domains";
 import { BaptistaThread } from "@/components/baptista/thread";
+import { FavoritesQuickLinks, FavoritesEmpty, type FavoriteItem } from "@/components/favorites-section";
 import { ActionButton } from "@/components/forms";
 import { ChecklistRows } from "@/components/checklist";
 import { ListAccordion } from "@/components/list-accordion";
 import { ProgressRing } from "@/components/progress-ring";
+import { Widget } from "@/components/widgets";
 import { recordColor } from "@/lib/categories";
 import { Card, EmptyState, PrivateMark, Section, TextLink } from "@/components/ui";
 import {
@@ -19,8 +22,10 @@ import {
   requireExecutionContext,
   type ExecutionContext,
 } from "@/lib/households/context";
+import { getFeature, ROOM_LABELS } from "@/lib/features";
 import { getCurrentRoom } from "@/lib/rooms-server";
 import { eventStartDay, listEventsBetween } from "@/services/calendar";
+import { listFavorites } from "@/services/favorites";
 import { listNotes } from "@/services/notes";
 import { goalPercent } from "@/lib/goals";
 import { listGoals } from "@/services/goals";
@@ -69,13 +74,14 @@ async function LivingRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
 
   const tomorrow = addDays(today, 1);
 
-  const [events, due, habits, goals, lists, notes] = await Promise.all([
+  const [events, due, habits, goals, lists, notes, favorites] = await Promise.all([
     listEventsBetween(ctx, today, addDays(today, 2)),
     listTasksDueBetween(ctx, today, tomorrow),
     listHabits(ctx, { activeOnly: true }),
     listGoals(ctx),
     listNotes(ctx, 6, "list"),
     listNotes(ctx, 6, "note"),
+    listFavorites(ctx),
   ]);
   // The calendar summary covers today and tomorrow; an event already running counts for today.
   const days = [today, tomorrow].map((day) => ({
@@ -107,10 +113,47 @@ async function LivingRoom({ ctx, now }: { ctx: ExecutionContext; now: Date }) {
       view.thumb.color = colors[view.thumb.sourceId];
   }
 
+  // Build FavoriteItem list for the client component.
+  const favoriteItems: FavoriteItem[] = favorites
+    .map((fav) => {
+      const feature = getFeature(fav.feature_id);
+      if (!feature) return null;
+      return {
+        featureId: fav.feature_id,
+        label: feature.label,
+        icon: feature.icon,
+        href: feature.href,
+        roomLabel: ROOM_LABELS[feature.room],
+        displayMode: fav.display_mode,
+        canWidget: feature.canWidget,
+      };
+    })
+    .filter((x): x is FavoriteItem => x !== null);
+
+  // Split favorites into quick links and widget items.
+  const widgetItems = favoriteItems.filter((i) => i.displayMode === "widget" && i.canWidget);
+
   return (
     <>
       {thread.quiet ? <p className="-mt-2 text-muted">{thread.quiet}</p> : null}
       <BaptistaThread thread={thread} timeZone={tz} />
+
+      {favoriteItems.length > 0 ? (
+        <>
+          <FavoritesQuickLinks items={favoriteItems} />
+          {widgetItems.map((item) => {
+            const feature = getFeature(item.featureId);
+            if (!feature?.widgetId) return null;
+            return (
+              <Suspense key={item.featureId} fallback={<div className="h-20 animate-pulse rounded-2xl bg-foreground/5" />}>
+                <Widget widgetId={feature.widgetId} ctx={ctx} />
+              </Suspense>
+            );
+          })}
+        </>
+      ) : (
+        <FavoritesEmpty />
+      )}
 
       <Section
         title="Oggi e domani"

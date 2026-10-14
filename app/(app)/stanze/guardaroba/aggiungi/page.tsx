@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { Icon } from "@/components/icons";
-import { CLOTHING_TYPES } from "@/lib/wardrobe";
+import { CLOTHING_TYPES, CLOTHING_TYPE_IMAGE } from "@/lib/wardrobe";
 
 export const metadata: Metadata = { title: "Aggiungi capo" };
 
@@ -24,7 +24,7 @@ export default async function AddClothingPage({ searchParams }: PageProps<"/stan
             href={`/stanze/guardaroba/aggiungi/capo?tipo=${t.id}${spesaParam}`}
             className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-surface p-3 text-center transition active:scale-[0.98] hover:border-accent hover:bg-accent/5"
           >
-            <Icon name="hanger" className="size-7 text-muted" />
+            <Image src={CLOTHING_TYPE_IMAGE[t.id]} alt="" width={40} height={40} className="size-10 object-contain" />
             <span className="text-sm font-medium">{t.label}</span>
           </Link>
         ))}

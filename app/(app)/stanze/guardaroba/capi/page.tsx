@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { buttonClass, cx, EmptyState, TextLink } from "@/components/ui";
 import { WardrobeGrid } from "@/components/wardrobe-grid";
 import { requireExecutionContext } from "@/lib/households/context";
-import { CLOTHING_TYPES, COLORS, SEASONS } from "@/lib/wardrobe";
+import { CLOTHING_TYPES, CLOTHING_TYPE_IMAGE, COLORS, SEASONS } from "@/lib/wardrobe";
 import { listWardrobe, signedUrls } from "@/services/wardrobe";
 import { OwnedBeforeBulk } from "@/components/wardrobe-bulk";
 import { BaptistaRoom } from "@/components/baptista/room";
@@ -37,26 +38,35 @@ export default async function ClothesPage({ searchParams }: PageProps<"/stanze/g
     risposta: params.risposta === "1" ? "1" : undefined,
   };
   const all = await listWardrobe(ctx, filters.archivio ? "archived" : "active");
-  // A-2: my items whose origin is still unknown («Da rispondere»).
-  const unanswered = filters.archivio ? [] : all.filter((i) => i.acquisition === "unknown" && i.owner_user_id === ctx.user.id);
+  // Items with incomplete info: missing season, acquisition answer, formality, or size.
+  const incomplete = filters.archivio
+    ? []
+    : all.filter(
+        (i) =>
+          i.owner_user_id === ctx.user.id &&
+          (i.seasons.length === 0 || i.acquisition === "unknown" || !i.formality || !i.size),
+      );
+  const unanswered = incomplete.filter((i) => i.acquisition === "unknown");
   if (filters.risposta) {
-    const thumbs = await signedUrls(ctx, unanswered.map((i) => i.thumb_path));
+    const thumbs = await signedUrls(ctx, incomplete.flatMap((i) => [i.processed_path, i.thumb_path]));
     return (
       <>
         <TextLink href="/stanze/guardaroba/capi">← Capi</TextLink>
         <header>
-          <h1 className="text-3xl font-semibold tracking-tight">Da rispondere</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Da completare</h1>
           <p className="text-muted">
-            {unanswered.length === 1 ? "1 capo" : `${unanswered.length} capi`} senza risposta a «L&apos;hai comprato?»
+            {incomplete.length === 1 ? "1 capo" : `${incomplete.length} capi`} con informazioni mancanti (stagione, stile, taglia, prezzo).
           </p>
         </header>
-        {unanswered.length ? (
+        {incomplete.length ? (
           <>
-            <OwnedBeforeBulk items={unanswered.map((i) => ({ id: i.id, name: i.name, thumb: i.thumb_path ? (thumbs.get(i.thumb_path) ?? null) : null }))} />
-            {unanswered.length < 7 ? <WardrobeGrid items={unanswered} urls={thumbs} /> : null}
+            {unanswered.length >= 7 ? (
+              <OwnedBeforeBulk items={unanswered.map((i) => ({ id: i.id, name: i.name, thumb: i.thumb_path ? (thumbs.get(i.thumb_path) ?? null) : null }))} />
+            ) : null}
+            <WardrobeGrid items={incomplete} urls={thumbs} />
           </>
         ) : (
-          <EmptyState>Hai risposto per tutti i capi.</EmptyState>
+          <EmptyState>Tutti i capi sono completi.</EmptyState>
         )}
       </>
     );
@@ -67,8 +77,8 @@ export default async function ClothesPage({ searchParams }: PageProps<"/stanze/g
       (!filters.stagione || i.seasons.includes(filters.stagione) || i.seasons.length === 0) &&
       (!filters.colore || i.primary_color === filters.colore || i.secondary_colors.includes(filters.colore)),
   );
-  const urls = await signedUrls(ctx, items.map((i) => i.thumb_path));
-  const typesInUse = CLOTHING_TYPES.filter((t) => all.some((i) => i.type === t.id));
+  const urls = await signedUrls(ctx, items.flatMap((i) => [i.processed_path, i.thumb_path]));
+  const typeCounts = new Map(CLOTHING_TYPES.map((t) => [t.id, all.filter((i) => i.type === t.id).length]));
   const chip = (active: boolean) =>
     cx(
       "flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm whitespace-nowrap",
@@ -87,17 +97,29 @@ export default async function ClothesPage({ searchParams }: PageProps<"/stanze/g
         </Link>
       </header>
 
-      {all.length ? (
-        <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
           <nav aria-label="Tipo" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
             <Link href={href(filters, { tipo: undefined })} className={chip(!filters.tipo)} scroll={false}>
-              Tutti
+              Tutti <span className="text-xs tabular-nums">{all.length}</span>
             </Link>
-            {typesInUse.map((t) => (
-              <Link key={t.id} href={href(filters, { tipo: filters.tipo === t.id ? undefined : t.id })} className={chip(filters.tipo === t.id)} scroll={false}>
-                {t.label}
-              </Link>
-            ))}
+            {CLOTHING_TYPES.map((t) => {
+              const count = typeCounts.get(t.id) ?? 0;
+              const content = (
+                <>
+                  <Image src={CLOTHING_TYPE_IMAGE[t.id]} alt="" width={28} height={28} className="size-7 object-contain" />
+                  <span className="text-xs tabular-nums">{count}</span>
+                </>
+              );
+              return count === 0 ? (
+                <span key={t.id} aria-label={`${t.label}: 0 capi disponibili`} className={cx(chip(false), "cursor-default opacity-40")}>
+                  {content}
+                </span>
+              ) : (
+                <Link key={t.id} href={href(filters, { tipo: filters.tipo === t.id ? undefined : t.id })} className={chip(filters.tipo === t.id)} scroll={false}>
+                  {content}
+                </Link>
+              );
+            })}
           </nav>
           <nav aria-label="Stagione" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
             {SEASONS.map((s) => (
@@ -116,17 +138,16 @@ export default async function ClothesPage({ searchParams }: PageProps<"/stanze/g
               Colore: {COLORS.find((c) => c.id === filters.colore)?.label} ×
             </Link>
           ) : null}
-        </div>
-      ) : null}
+      </div>
 
       <BaptistaRoom ctx={ctx} room="guardaroba" />
 
-      {unanswered.length ? (
+      {incomplete.length ? (
         <Link href={href(filters, { risposta: "1" })} className="flex min-h-12 items-center justify-between rounded-2xl border border-border bg-surface px-4 text-sm">
           <span>
-            <span className="font-medium">Da rispondere:</span> {unanswered.length === 1 ? "1 capo" : `${unanswered.length} capi`}
+            <span className="font-medium">Da completare:</span> {incomplete.length === 1 ? "1 capo" : `${incomplete.length} capi`}
           </span>
-          <span className="text-accent">{unanswered.length >= 7 ? "Erano già miei →" : "Vedi →"}</span>
+          <span className="text-accent">Completa →</span>
         </Link>
       ) : null}
 

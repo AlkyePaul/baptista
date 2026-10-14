@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import NextImage from "next/image";
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { cx } from "@/components/ui";
 import type { LookItem, WardrobeItem } from "@/lib/db/types";
 import { initialActionState, type ActionState } from "@/lib/errors";
-import { CLOTHING_TYPES, CLOTHING_TYPE_ICON, DEFAULT_PLACEMENT } from "@/lib/wardrobe";
+import { CLOTHING_TYPES, CLOTHING_TYPE_IMAGE, DEFAULT_PLACEMENT } from "@/lib/wardrobe";
 import { createLookAction, saveLookItemsAction } from "@/app/actions/looks";
 
 type CanvasItem = {
@@ -473,9 +474,10 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
   );
 
   // Derived
-  const availableCategories = CLOTHING_TYPES.filter((t) =>
-    wardrobeItems.some((w) => w.type === t.id && w.status === "active" && !items.some((i) => i.id === w.id)),
-  );
+  const availableCounts = new Map(CLOTHING_TYPES.map((t) => [
+    t.id,
+    wardrobeItems.filter((w) => w.type === t.id && w.status === "active" && !items.some((i) => i.id === w.id)).length,
+  ]));
 
   const drawerItems = drawerCategory
     ? wardrobeItems.filter((w) => w.type === drawerCategory && w.status === "active" && !items.some((i) => i.id === w.id))
@@ -511,7 +513,17 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
           Random
         </button>
         <form action={saveAction} className="shrink-0">
-          <input type="hidden" name="visibility" value="household" />
+          {!lookId && (
+            <select
+              name="visibility"
+              defaultValue="private"
+              aria-label="Chi può vedere il look"
+              className="mr-2 rounded-md border border-border bg-surface px-2 py-1 text-xs"
+            >
+              <option value="private">Solo io</option>
+              <option value="household">Tutta la casa</option>
+            </select>
+          )}
           <button
             type="submit"
             disabled={!title.trim() || items.length === 0}
@@ -536,19 +548,22 @@ export function LookEditor({ wardrobeItems, urls, lookId, lookVersion, existingT
         />
 
         {/* Category icon strip — overlaid on right edge */}
-        {availableCategories.length > 0 && !drawerCategory && (
-          <div className="absolute bottom-0 right-0 top-0 z-10 flex w-11 flex-col gap-1 overflow-y-auto p-1 bg-gray-200">
-            {availableCategories.map((t) => {
-              const iconName = CLOTHING_TYPE_ICON[t.id];
+        {!drawerCategory && (
+          <div className="absolute bottom-0 right-0 top-0 z-10 flex w-11 flex-col justify-center gap-4 overflow-y-auto p-1 bg-violet-200">
+            {CLOTHING_TYPES.map((t) => {
+              const count = availableCounts.get(t.id) ?? 0;
               return (
                 <button
                   key={t.id}
                   type="button"
-                  title={t.label}
+                  title={`${t.label}: ${count} disponibili`}
+                  aria-label={`${t.label}: ${count} disponibili`}
+                  disabled={count === 0}
                   onClick={() => setDrawerCategory(t.id)}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface text-muted backdrop-blur-sm transition hover:bg-surface"
+                  className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface text-muted backdrop-blur-sm transition hover:bg-surface disabled:pointer-events-none disabled:opacity-60"
                 >
-                  <Icon name={iconName} className="size-5" />
+                  <NextImage src={CLOTHING_TYPE_IMAGE[t.id]} alt="" width={28} height={28} className="size-7 object-contain" />
+                  <span aria-hidden="true" className="absolute bottom-0 right-0 rounded-full bg-surface px-0.5 text-[10px] leading-3 tabular-nums">{count}</span>
                 </button>
               );
             })}

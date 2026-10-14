@@ -74,7 +74,7 @@ export function Badge({ children, tone = "muted" }: { children: ReactNode; tone?
     accent: "bg-accent/15 text-accent",
     danger: "bg-danger/10 text-danger",
   };
-  return <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-medium", tones[tone])}>{children}</span>;
+  return <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-medium w-fit", tones[tone])}>{children}</span>;
 }
 
 export function ProgressBar({ value, label }: { value: number; label: string }) {

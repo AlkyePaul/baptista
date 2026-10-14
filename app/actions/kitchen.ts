@@ -244,7 +244,50 @@ export async function setKcalTargetAction(_: ActionState, formData: FormData): P
 
 export async function deleteDietEntryAction(entryId: string): Promise<ActionState> {
   const ctx = await requireExecutionContext();
-  return run(() => deleteRecord(ctx, "diet_entries", id(entryId)));
+  return run(() => schedules.deleteDietEntryWithSkip(ctx, id(entryId)));
+}
+
+/** Add a catalog food from the food selector (RPC-style, no FormData). */
+export async function addFoodEntryDirectAction(input: {
+  eaten_on: string;
+  slot: string;
+  food_id: string;
+  grams: number;
+}): Promise<ActionState> {
+  const parsed = diet.foodEntrySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? messageFor("invalid") };
+  const ctx = await requireExecutionContext();
+  return attempt(() => diet.addFoodEntry(ctx, parsed.data), "Aggiunto.");
+}
+
+/** Add a saved meal from the food selector. */
+export async function addMealEntryDirectAction(input: {
+  eaten_on: string;
+  slot: string;
+  meal_id: string;
+  portions: number;
+}): Promise<ActionState> {
+  const parsed = diet.mealEntrySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? messageFor("invalid") };
+  const ctx = await requireExecutionContext();
+  return run(() => diet.addMealEntry(ctx, parsed.data), "Aggiunto.");
+}
+
+/** Trigger materialization of recurring meals for a date range. */
+export async function materializeSchedulesAction(from: string, to: string): Promise<ActionState> {
+  const ctx = await requireExecutionContext();
+  return run(() => schedules.materializeSchedules(ctx, from, to));
+}
+
+/** List recently used foods for the food selector. */
+export async function listRecentFoodsAction(): Promise<{ ok: true; foods: import("@/lib/db/types").Food[] } | { ok: false; message: string }> {
+  try {
+    const ctx = await requireExecutionContext();
+    const foods = await diet.listRecentFoods(ctx);
+    return { ok: true, foods };
+  } catch {
+    return { ok: false, message: "Errore nel caricamento." };
+  }
 }
 
 // Schedules (recurring meals) ----------------------------------------------------------------
@@ -261,16 +304,22 @@ export async function deleteScheduleAction(scheduleId: string): Promise<ActionSt
   return run(() => schedules.deleteSchedule(ctx, id(scheduleId)));
 }
 
-export async function confirmScheduleAction(scheduleId: string, day: string, slot: string): Promise<ActionState> {
+/** Save a slot's manual entries as a recurring meal on selected weekdays. */
+export async function saveSlotAsRecurringAction(input: {
+  day: string;
+  slotId: string;
+  title: string;
+  weekdays: number[];
+}): Promise<ActionState> {
   const ctx = await requireExecutionContext();
-  return attempt(() => schedules.confirmSchedule(ctx, id(scheduleId), day, slot), "Aggiunto al diario.");
+  return attempt(() => schedules.saveSlotAsRecurring(ctx, input), "Salvato e programmato.");
 }
 
 // Delete -------------------------------------------------------------------------------------
 
 const DELETE_TARGETS = {
   food_items: "/stanze/cucina/dispensa",
-  meals: "/stanze/cucina/pasti#pasti",
+  meals: "/stanze/cucina/pasti",
   recipes: "/stanze/cucina/ricette",
 } as const;
 

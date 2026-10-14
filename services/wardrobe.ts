@@ -11,7 +11,7 @@ import { EXTENSION, MAX_PIXELS, MAX_UPLOAD_BYTES, sniffImage, type ImageMime } f
 import { BAPTISTA_BUCKETS } from "@/lib/supabase/schema";
 import { CLOTHING_TYPES, COLORS, FORMALITIES, parseTags, PATTERNS, SEASONS } from "@/lib/wardrobe";
 import { checkImage } from "@/services/images";
-import { getRecord, optionalCivilDate, optionalDecimal, optionalText, requiredText, updateVersioned, versionField } from "@/services/shared";
+import { checkbox, getRecord, optionalCivilDate, optionalDecimal, optionalText, requiredText, updateVersioned, versionField } from "@/services/shared";
 
 const BUCKET = BAPTISTA_BUCKETS.wardrobe;
 /** Short-lived links, issued after authorization and never stored (SECURITY.md). */
@@ -26,16 +26,13 @@ const optionalEnum = <T extends readonly { id: string }[]>(list: T) =>
 const wardrobeFields = {
   name: requiredText(120, "Dai un nome al capo."),
   type: z.enum(ids(CLOTHING_TYPES), { error: "Scegli il tipo di capo." }),
-  subtype: optionalText(60),
   primary_color: optionalEnum(COLORS),
   secondary_colors: many(z.enum(ids(COLORS))).refine((v) => v.length <= 5, "Al massimo 5 colori secondari."),
   pattern: optionalEnum(PATTERNS),
-  material: optionalText(60),
   seasons: many(z.enum(ids(SEASONS))),
   formality: optionalEnum(FORMALITIES),
-  brand: optionalText(60),
   size: optionalText(20),
-  tags: z.string().optional().transform(parseTags),
+  favourite: checkbox,
   notes: optionalText(1000),
   visibility: visibilitySchema,
 };

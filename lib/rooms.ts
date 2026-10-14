@@ -24,6 +24,8 @@ export type IconName =
   | "hanger"
   | "tag"
   | "diet"
+  | "food"
+  | "meals"
   | "target"
   | "chart"
   | "camera"
@@ -38,7 +40,17 @@ export type IconName =
   | "type-accessory"
   | "type-sportswear"
   | "type-underwear"
-  | "type-other";
+  | "type-other"
+  | "star"
+  | "star-filled"
+  | "grip"
+  | "chevron-right"
+  | "repeat"
+  | "chevron-left"
+  | "chevron-down"
+  | "chevron-up"
+  | "plus"
+  | "skip";
 
 export type NavItem = { href: string; label: string; icon: IconName };
 
@@ -75,7 +87,7 @@ export const ROOMS: Record<RoomId, Room> = {
     nav: [
       { href: "/stanze/cucina/dispensa", label: "Dispensa", icon: "pantry" },
       { href: "/stanze/cucina/aggiungi", label: "Aggiungi", icon: "add" },
-      { href: "/stanze/cucina/pasti", label: "Pasti", icon: "diet" },
+      { href: "/stanze/cucina/pasti", label: "Pasti", icon: "meals" },
     ],
   },
   finanze: {
@@ -89,7 +101,7 @@ export const ROOMS: Record<RoomId, Room> = {
     nav: [
       { href: "/stanze/finanze/spese", label: "Spese", icon: "coins" },
       { href: "/stanze/finanze/aggiungi", label: "Aggiungi", icon: "add" },
-      { href: "/stanze/finanze/budget", label: "Budget", icon: "target" },
+      { href: "/stanze/finanze/budget", label: "Budget", icon: "piggybank" },
     ],
   },
   guardaroba: {

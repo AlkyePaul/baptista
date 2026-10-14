@@ -37,11 +37,14 @@ export function LooksGrid({ looks, urls }: { looks: Look[]; urls: Map<string, st
                 ) : (
                   <Icon name="outfit" className="size-10 text-muted" />
                 )}
+               
               </span>
-              <span className="flex items-center gap-2 px-3 py-2">
-                <span className="line-clamp-1 flex-1 text-sm font-medium">{look.title}</span>
-                <PrivateMark visibility={look.visibility} />
-              </span>
+               <span className="flex gap-2 px-3 py-2 items-center"> <PrivateMark visibility={look.visibility} /></span>
+              <span className="flex gap-2 px-3 pb-2 flex-1 text-sm font-medium">
+                
+{look.title}</span>
+                
+              
             </Link>
 
             {/* Delete button / confirmation overlay */}

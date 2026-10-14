@@ -1,5 +1,3 @@
-import type { IconName } from "@/lib/rooms";
-
 /** Guardaroba vocabulary (D28: manual classification). Ids are stable, labels are Italian. */
 
 export const CLOTHING_TYPES = [
@@ -97,16 +95,15 @@ export const DEFAULT_PLACEMENT: Record<string, { x: number; y: number; scale: nu
   other:      { x: 0.50, y: 0.40, scale: 0.95 },
 };
 
-/** Maps each clothing type to an icon name for the category strip. */
-export const CLOTHING_TYPE_ICON: Record<string, IconName> = {
-  top: "type-top",
-  knitwear: "type-knitwear",
-  bottom: "type-bottom",
-  dress: "type-dress",
-  outerwear: "type-outerwear",
-  shoes: "type-shoes",
-  accessory: "type-accessory",
-  sportswear: "type-sportswear",
-  underwear: "type-underwear",
-  other: "type-other",
+/** Public category artwork. Keys match the persisted clothing types. */
+export const CLOTHING_TYPE_IMAGE: Record<ClothingType, string> = {
+  top: "/icons/clothes-icon/top.png",
+  knitwear: "/icons/clothes-icon/knitwear.png",
+  bottom: "/icons/clothes-icon/bottom.png",
+  dress: "/icons/clothes-icon/dress.png",
+  outerwear: "/icons/clothes-icon/outwear.png",
+  shoes: "/icons/clothes-icon/shoes.png",
+  accessory: "/icons/clothes-icon/accessories.png",
+  sportswear: "/icons/clothes-icon/sport.png",
+  underwear: "/icons/clothes-icon/underwear.png",
 };

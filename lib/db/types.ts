@@ -195,6 +195,16 @@ export type DietEntry = {
   fat_g: number | null;
   meal_id: string | null;
   schedule_id: string | null;
+  food_id: string | null;
+  created_at: string;
+};
+
+export type DietEntrySkip = {
+  id: string;
+  household_id: string;
+  owner_user_id: string;
+  schedule_id: string;
+  skipped_on: string;
   created_at: string;
 };
 
@@ -273,6 +283,7 @@ export type WardrobeItem = RecordBase & {
   thumb_path: string | null;
   processed_path: string | null;
   status: "active" | "archived";
+  favourite: boolean;
   /** A-2: how the item arrived; `expense_id` links the purchase in Finanze. */
   acquisition: "unknown" | "purchased" | "gift" | "owned_before";
   expense_id: string | null;
@@ -346,5 +357,18 @@ export type FinanceGoal = RecordBase & {
   estimate_lines: EstimateLine[];
   initial_estimate: number;
   status: "active" | "completed" | "archived";
+};
+
+// ── User favorites ────────────────────────────────────────────────────────
+
+export type UserFavorite = {
+  id: string;
+  user_id: string;
+  feature_id: string;
+  display_mode: "quick_link" | "widget";
+  sort_order: number;
+  widget_config: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
 };
 
